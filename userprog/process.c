@@ -163,6 +163,8 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
+	printf("process_exec 실행, file name: %s\n", f_name);
+
 	bool success;
 
 	/* We cannot use the intr_frame in the thread structure.
@@ -172,6 +174,19 @@ process_exec (void *f_name) {
 	_if.ds = _if.es = _if.ss = SEL_UDSEG;
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
+
+    char *save_ptr;
+	char *token;
+	int argc = 0;
+
+	token = strtok_r(f_name, " ", &save_ptr);
+	while (token != NULL) {
+		argc++;
+        printf("Token: %s\n", token);
+        token = strtok_r(NULL, " ", &save_ptr);
+    }
+	printf("argc: %d\n", argc);
+
 
 	/* We first kill the current context */
 	process_cleanup ();
@@ -337,6 +352,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Open executable file. */
 	file = filesys_open (file_name);
+
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -416,6 +432,24 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+    char *save_ptr;
+	char *token;
+	int argc = 0;
+
+	token = strtok_r(file_name, " ", &save_ptr);
+	char* tmp_address;
+	while (token != NULL) {
+		argc++;
+        printf("Token: %s\n", token);
+        token = strtok_r(NULL, " ", &save_ptr);
+		tmp_address = if_->rsp; // 읽어들이는 시작지점
+		
+		if_->rsp += sizeof(token);
+
+    }
+	printf("argc: %d\n", argc);
+	
+	if_->R.rsi = argc;
 
 	success = true;
 
