@@ -88,13 +88,16 @@ timer_elapsed (int64_t then) {
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
-void
-timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+void timer_sleep(int64_t ticks)
+{
+	int64_t start = timer_ticks();
 
-	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+	// ticks + timer_ticks()를 더해서 인자에 넣어주기.
+	ASSERT(intr_get_level() == INTR_ON);
+
+	insert_blockList(ticks + start);
+
+	// thread_yield ();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -126,6 +129,7 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+	wake_up(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

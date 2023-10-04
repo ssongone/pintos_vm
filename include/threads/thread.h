@@ -91,9 +91,15 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	int64_t endTick;
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+
+	int priority_origin;
+	struct lock* wait_on_lock;
+	struct list donations;
+	struct list_elem donation_elem;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -142,5 +148,12 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void insert_blockList(int64_t nowTime);
+void wake_up(int64_t ticks);
+
+bool compare (const struct list_elem *a, const struct list_elem *b, void *aux);
+bool compare_tick (const struct list_elem *a, const struct list_elem *b, void *aux);
+bool compare_reverse (const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */

@@ -27,6 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+static struct list block_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -108,6 +109,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init(&block_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -206,6 +208,7 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);
+	thread_yield();
 
 	return tid;
 }
@@ -232,17 +235,19 @@ thread_block (void) {
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
-void
-thread_unblock (struct thread *t) {
+void thread_unblock(struct thread *t)
+{
 	enum intr_level old_level;
 
-	ASSERT (is_thread (t));
+	ASSERT(is_thread(t));
 
-	old_level = intr_disable ();
-	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	old_level = intr_disable();
+	ASSERT(t->status == THREAD_BLOCKED);
+	list_insert_ordered(&ready_list, &t->elem, compare_reverse, NULL);
+
 	t->status = THREAD_READY;
-	intr_set_level (old_level);
+
+	intr_set_level(old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -294,25 +299,48 @@ thread_exit (void) {
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
-void
-thread_yield (void) {
-	struct thread *curr = thread_current ();
+void thread_yield(void)
+{
+	struct thread *curr = thread_current();
 	enum intr_level old_level;
 
-	ASSERT (!intr_context ());
+	ASSERT(!intr_context());
 
-	old_level = intr_disable ();
+	old_level = intr_disable();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
-	intr_set_level (old_level);
+	{
+		list_insert_ordered(&ready_list, &thread_current()->elem, compare_reverse, NULL);
+		do_schedule(THREAD_READY);
+	}
+	intr_set_level(old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+void thread_set_priority(int new_priority)
+{	
+	struct thread *curr = thread_current();
+
+	curr->priority_origin = new_priority;
+
+	curr->priority = curr->priority_origin;
+
+	struct thread *front_thread = NULL;
+
+	if (!list_empty(&curr->donations))
+	{
+		front_thread = list_entry(list_begin(&curr->donations),
+								  struct thread,
+								  donation_elem);
+
+		if (curr->priority < front_thread->priority)
+		{
+			curr->priority = front_thread->priority;
+		}
+	}
+
+	thread_yield();
 }
+
 
 /* Returns the current thread's priority. */
 int
@@ -398,16 +426,21 @@ kernel_thread (thread_func *function, void *aux) {
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
-init_thread (struct thread *t, const char *name, int priority) {
-	ASSERT (t != NULL);
-	ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
-	ASSERT (name != NULL);
+init_thread(struct thread *t, const char *name, int priority)
+{
+	ASSERT(t != NULL);
+	ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
+	ASSERT(name != NULL);
 
-	memset (t, 0, sizeof *t);
+	memset(t, 0, sizeof *t);
 	t->status = THREAD_BLOCKED;
-	strlcpy (t->name, name, sizeof t->name);
-	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
+	strlcpy(t->name, name, sizeof t->name);
+	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
+	t->priority_origin = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donations);
+
 	t->magic = THREAD_MAGIC;
 }
 
@@ -588,3 +621,61 @@ allocate_tid (void) {
 
 	return tid;
 }
+
+void wake_up(int64_t ticks)
+{
+
+	while (!list_empty(&block_list))
+	{
+		struct thread *thread = list_entry(list_front(&block_list), struct thread, elem);
+
+		if (thread->endTick > ticks)
+		{
+			break;
+		}
+		else
+		{
+			struct thread *enterThread = list_entry(list_pop_front(&block_list), struct thread, elem);
+			thread_unblock(enterThread);
+		}
+	}
+}
+
+void insert_blockList(int64_t endtick)
+{
+	struct thread *curr = thread_current();
+	enum intr_level old_level;
+
+	curr->endTick = endtick;
+	old_level = intr_disable();
+	if (curr != idle_thread)
+	{
+
+		list_insert_ordered(&block_list, &(curr->elem), compare_tick, NULL);
+		do_schedule(THREAD_BLOCKED);
+	}
+	intr_set_level(old_level);
+}
+
+bool compare_tick(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *t_a = list_entry(a, struct thread, elem);
+	struct thread *t_b = list_entry(b, struct thread, elem);
+	return t_a->endTick < t_b->endTick;
+}
+
+bool compare(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *t_a = list_entry(a, struct thread, elem);
+	struct thread *t_b = list_entry(b, struct thread, elem);
+	return t_a->priority < t_b->priority;
+}
+
+bool compare_reverse(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *t_a = list_entry(a, struct thread, elem);
+	struct thread *t_b = list_entry(b, struct thread, elem);
+	return t_a->priority > t_b->priority;
+}
+
+
