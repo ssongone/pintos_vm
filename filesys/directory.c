@@ -108,12 +108,11 @@ dir_lookup (const struct dir *dir, const char *name,
 
 	ASSERT (dir != NULL);
 	ASSERT (name != NULL);
-
+	// printf("name : %s 나 파싱완료\n", name);
 	if (lookup (dir, name, &e, NULL))
 		*inode = inode_open (e.inode_sector);
 	else
 		*inode = NULL;
-
 	return *inode != NULL;
 }
 

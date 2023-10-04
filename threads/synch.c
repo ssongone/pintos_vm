@@ -146,7 +146,29 @@ void sema_up(struct semaphore *sema)
 	}
 
 	sema->value++;
-	thread_yield();
+
+
+	/*intr_context()를 넣어준 이유는 넣지않은상태에선 kernel panic이 뜨면서 
+	thread_yield()함수에서 !intr_context() failed가 뜨기때문.
+	인터럽트 컨텍스트에서 yield를 호출하면 안되는이유
+	1. 재진입 문제 : 인터럽트 핸들러는 재진입 불가능하다고 가정하는데, 이는 동일한 인터럽트 핸들러가
+		동시에 여러번 호출되어 실행되지 않는다는것임.
+		그러나 yield를 호출하면 다른 스레드나 프로세스가 실행될수 있어 동일한 인터럽트 핸들러가 재진입할 수 있는
+		상황이 발생할 수 있음.
+	2. 스택 문제 : 인터럽트 핸들러는 종종 별도의 스택을 사용하여 실행되는데, yield를 호출하면
+		현재 스택 컨텍스트를 변경할 수 있으므로 인터럽트 핸들러가 반환될 때 스택상태에
+		문제가 발생할 수 있음.
+	3. 우선순위 문제 : 인터럽트는 종종 시스템 내 중요한 사건을 나타내므로 즉시 처리되어야 함.
+		인터럽트 처리중에 yield를 호출하면 인터럽트 처리가 지연될 수 있어 이로인해
+		시스템의 반응성이 저하될 수 있음.
+	*/ 
+    #ifdef USERPROG 
+        if (thread_current()->pml4 != 0 && !intr_context()) {
+            thread_yield();
+        }
+    #else
+        thread_yield();
+    #endif
 
 	intr_set_level(old_level);
 }

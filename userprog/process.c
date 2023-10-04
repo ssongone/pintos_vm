@@ -175,10 +175,10 @@ process_exec (void *f_name) {
 
 	/* We first kill the current context */
 	process_cleanup ();
-
 	/* And then load the binary */
+	printf("몇번\n");
 	success = load (file_name, &_if);
-
+	
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
@@ -328,15 +328,32 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
+	// char *tmp_word[1000];
 
+	// ASSERT(strlen(file_name) < 1000);
+
+	// strlcpy(tmp_word, file_name, sizeof(tmp_word));
+
+	// int j = 0;
+	// while(tmp_word[j] != '\0'){
+	// 	if(tmp_word[j] == ' '){
+	// 		tmp_word[j] = '\0';
+	// 	}
+	// 	j++;
+	// }
+	// printf("tmp word : %s\n", tmp_word);
+
+	// printf("file name : %s\n", file_name);
+	// file_name = "args-single";
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
-
+	
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (file_name); // 여기 file에 args-single이 들어가야 함(첫번 째
+	// printf("file open 했니? : %s\n", file);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -416,6 +433,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	// printf("hello? \n");
 
 	success = true;
 
