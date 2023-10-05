@@ -111,12 +111,12 @@ void sema_up(struct semaphore *sema)
 	enum intr_level old_level;
 
 	ASSERT(sema != NULL);
-
+	struct thread *next_holder = NULL;
 	old_level = intr_disable();
 	if (!list_empty(&sema->waiters))
 	{
 		struct list_elem *max_elem = list_max(&sema->waiters, compare, NULL);
-		struct thread *next_holder = list_entry(max_elem, struct thread, elem);
+		next_holder = list_entry(max_elem, struct thread, elem);
 
 		struct thread *curr = thread_current();
 
@@ -162,14 +162,20 @@ void sema_up(struct semaphore *sema)
 		인터럽트 처리중에 yield를 호출하면 인터럽트 처리가 지연될 수 있어 이로인해
 		시스템의 반응성이 저하될 수 있음.
 	*/ 
-    #ifdef USERPROG 
-        if (thread_current()->pml4 != 0 && !intr_context()) {
-            thread_yield();
-        }
-    #else
+	if (next_holder && thread_current()->priority <= next_holder->priority && !(intr_context())) {
         thread_yield();
-    #endif
+    }
 
+	// struct thread *next = NULL;
+    // if (!list_empty (&sema->waiters))   {// waiters에 들어있을 때
+    //     list_sort(&sema->waiters, compare_priority, NULL);
+    //     next = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+    //     thread_unblock (next);  // unblock처리 -> ready list로 옮겨줌
+    // }
+    // sema->value++;  // sema 값 증가
+    // if (next && next->priority > thread_current()->priority && !(intr_context())) {
+    //     thread_yield();
+    // }
 	intr_set_level(old_level);
 }
 

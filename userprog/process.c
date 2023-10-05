@@ -26,6 +26,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+void args_to_stack(char **argv_list, int count, char **rsp);
 
 /* General process initializer for initd and other process. */
 static void
@@ -49,9 +50,12 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
+	
+	char *save_ptr;
+	strtok_r(file_name, " ", &save_ptr);
 
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (file_name, PRI_DEFAULT+1, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -163,6 +167,7 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
+
 	bool success;
 
 	/* We cannot use the intr_frame in the thread structure.
@@ -173,10 +178,23 @@ process_exec (void *f_name) {
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
+    // char *save_ptr;
+	// char *token;
+	// int argc = 0;
+
+	// token = strtok_r(f_name, " ", &save_ptr);
+	// while (token != NULL) {
+	// 	argc++;
+    //     printf("Token: %s\n", token);
+    //     token = strtok_r(NULL, " ", &save_ptr);
+    // }
+	// printf("argc: %d\n", argc);
+
+
 	/* We first kill the current context */
 	process_cleanup ();
 	/* And then load the binary */
-	printf("몇번\n");
+	// printf("몇번\n");
 	success = load (file_name, &_if);
 	
 	/* If load failed, quit. */
@@ -204,6 +222,9 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	// for(int i = 0; i<1000000000; i++){
+
+	// }
 	return -1;
 }
 
@@ -215,7 +236,6 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-
 	process_cleanup ();
 }
 
@@ -328,22 +348,26 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
-	// char *tmp_word[1000];
 
-	// ASSERT(strlen(file_name) < 1000);
+	char *token, *save_ptr;
+	char *argv_token[64];
+	char *argv[64];
+	uint64_t argc = 0;
 
-	// strlcpy(tmp_word, file_name, sizeof(tmp_word));
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv_token[argc++] = token;
+	}
 
-	// int j = 0;
-	// while(tmp_word[j] != '\0'){
-	// 	if(tmp_word[j] == ' '){
-	// 		tmp_word[j] = '\0';
-	// 	}
-	// 	j++;
-	// }
-	// printf("tmp word : %s\n", tmp_word);
 
-	// printf("file name : %s\n", file_name);
+    // printf("argc: %d\n", argc);
+    // printf("argv[0] = %s\n", argv_token[0]);
+    // printf("argv[1] = %s\n", argv_token[1]);
+	// // printf("rsp_address[0] = %x\n", rsp_address[0]);
+	// // printf("rsp_address[1] = %x\n", rsp_address[1]);
+	
+	// if_->R.rsi = argc;
+
+
 	// file_name = "args-single";
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -352,8 +376,13 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 	
 	/* Open executable file. */
-	file = filesys_open (file_name); // 여기 file에 args-single이 들어가야 함(첫번 째
-	// printf("file open 했니? : %s\n", file);
+	// char *save_ptr;
+	// char * token = strtok_r(file_name, " ", &save_ptr);
+	// @@
+	/* Open executable file. */
+	// file_name = "args-single";
+	file = filesys_open (file_name);
+	bool hello = true;
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -433,10 +462,38 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-	// printf("hello? \n");
 
-	success = true;
-
+	uintptr_t st_ptr = if_->rsp;
+    for (int i = argc -1 ; i >= 0 ; i--) {
+        int token_len = strlen(argv_token[i]);
+        st_ptr -= (token_len+1);
+        memcpy(st_ptr, argv_token[i], token_len+1);
+        argv[i] = st_ptr;
+    }
+    if ((if_->rsp - st_ptr) % 8)
+    {
+        int p_size = (8 - ((if_->rsp - st_ptr) % 8));
+        st_ptr -= p_size;
+        memset(st_ptr, 0, p_size);
+    }
+    for (int i = argc; i >=0; i--)
+    {
+        st_ptr -= 8;
+        if (i == argc) {
+            memset(st_ptr, 0, sizeof(char **)); // NULL
+        } else {
+            memcpy(st_ptr, &argv[i], sizeof(char **));
+        }
+    }
+    st_ptr -= 8;
+    memset(st_ptr, 0, 8); // why?
+    if_->rsp = st_ptr;
+    if_->R.rdi = argc;
+    if_->R.rsi = st_ptr + 8;
+    success = true;
+	
+	// hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
+	
 done:
 	/* We arrive here whether the load is successful or not. */
 	file_close (file);

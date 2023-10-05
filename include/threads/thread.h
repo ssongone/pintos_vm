@@ -156,4 +156,5 @@ bool compare (const struct list_elem *a, const struct list_elem *b, void *aux);
 bool compare_tick (const struct list_elem *a, const struct list_elem *b, void *aux);
 bool compare_reverse (const struct list_elem *a, const struct list_elem *b, void *aux);
 
+int next_thread_priority();
 #endif /* threads/thread.h */

@@ -104,6 +104,7 @@ lookup (const struct dir *dir, const char *name,
 bool
 dir_lookup (const struct dir *dir, const char *name,
 		struct inode **inode) {
+	
 	struct dir_entry e;
 
 	ASSERT (dir != NULL);

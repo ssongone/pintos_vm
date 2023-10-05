@@ -208,8 +208,11 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);
-	thread_yield();
 
+	
+	if (t->priority > thread_current()->priority) {
+        thread_yield();
+    	}
 	return tid;
 }
 
@@ -679,3 +682,9 @@ bool compare_reverse(const struct list_elem *a, const struct list_elem *b, void 
 }
 
 
+int next_thread_priority() {
+    if (list_empty(&ready_list))
+        return 0;
+    struct thread* max_t = list_max(&ready_list, compare, NULL);
+    return max_t->priority;
+}
