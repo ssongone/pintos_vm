@@ -64,8 +64,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_OPEN :
 			f->R.rax = call_open(f->R.rdi);
 			break;
+		// case SYS_CLOSE :
+		// 	call_close(f->R.rdi);
+		// 	break;
 
-
+		default :
+			exit(-1);
+			break;
 
 		
 
@@ -83,10 +88,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	
 }
 
-void check_addr(void *addr)
+void check_addr(const uint64_t *addr)
 {	
 	struct thread *curr = thread_current();
-	if(addr == NULL || (is_kernel_vaddr(addr)) || pml4_get_page(curr->pml4, addr) == NULL){
+	if(addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(curr->pml4, addr) == NULL){
 		exit(-1);}
 }
 
@@ -120,19 +125,28 @@ int call_open(const char *file){ // 이거뭐임 왜 이거 만드니까 create-
 	check_addr(file);
 	struct file *open_file = filesys_open(file);
 
-	if(!open_file) // fd가 NULL이면 (즉 파일이 안열리면)
-	{
+	if (open_file == NULL) {
 		return -1;
 	}
-	int fd = add_file_to_fdt(open_file);
 
-	// fb table이 가득 찼다면
-	if(fd == -1){
+	int fd = add_file_to_fdt(open_file);
+	// printf("@ is user? %d\n", file < KERN_BASE);
+
+	// fd table 가득 찼다면
+	if (fd == -1) {
 		file_close(open_file);
 	}
-	
 	return fd;
 }
+
+// void call_close(int fd){
+// 	struct thread *cur = thread_current();
+// 	struct file **fdt = cur->fd_table;
+// 	struct file *file = fdt[fd];
+
+// 	file_close(file);
+	
+// }
 
 //fd값을 return, 실패시 -1을 return
 void exit(int status){

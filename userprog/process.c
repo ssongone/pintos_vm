@@ -32,6 +32,8 @@ void args_to_stack(char **argv_list, int count, char **rsp);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	thread_current()->fd_table = palloc_get_page(0);
+	thread_current()->fd_idx = 2;
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -234,6 +236,7 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	palloc_free_page(thread_current()->fd_table);
 	process_cleanup ();
 }
 

@@ -6,7 +6,7 @@
 
 void syscall_init (void);
 
-void check_addr(void *addr);
+void check_addr(const uint64_t *addr);
 
 void exit(int status);
 void call_exit(struct thread* curr, uint64_t status);
