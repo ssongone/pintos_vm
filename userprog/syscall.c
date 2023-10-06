@@ -64,9 +64,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_OPEN :
 			f->R.rax = call_open(f->R.rdi);
 			break;
-		// case SYS_CLOSE :
-		// 	call_close(f->R.rdi);
-		// 	break;
+		case SYS_CLOSE :
+			call_close(f->R.rdi);
+			break;
 
 		default :
 			exit(-1);
@@ -139,14 +139,16 @@ int call_open(const char *file){ // 이거뭐임 왜 이거 만드니까 create-
 	return fd;
 }
 
-// void call_close(int fd){
-// 	struct thread *cur = thread_current();
-// 	struct file **fdt = cur->fd_table;
-// 	struct file *file = fdt[fd];
+void call_close(int fd){
+	struct file *file = find_file_by_Fd(fd);
+	if(file == NULL){
+		return;
+	}
 
-// 	file_close(file);
+	file_close(file);
+	filesys_remove(file);
 	
-// }
+}
 
 //fd값을 return, 실패시 -1을 return
 void exit(int status){
@@ -171,4 +173,13 @@ int add_file_to_fdt(struct file *file){
 
 	fdt[cur->fd_idx] = file;
 	return cur->fd_idx;
+}
+
+struct file *find_file_by_Fd(int fd){
+	struct thread *cur = thread_current();
+
+	if(fd < 0 || fd >= FDCOUNT_LIMIT){
+		return NULL;
+	}
+	return cur->fd_table[fd];
 }

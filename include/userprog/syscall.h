@@ -7,6 +7,7 @@
 void syscall_init (void);
 
 void check_addr(const uint64_t *addr);
+struct file *find_file_by_Fd(int fd);
 
 void exit(int status);
 void call_exit(struct thread* curr, uint64_t status);
