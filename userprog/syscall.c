@@ -51,7 +51,9 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	switch (f->R.rax)
 	{
 	case SYS_WRITE:
-		f->R.rax = call_write(f->R.rsi, f->R.rdx);
+		// f->R.rax = call_write(f->R.rsi, f->R.rdx);
+		// printf("rid, rsi, rdx : %d, %p, %d\n", f->R.rdi, f->R.rsi, f->R.rdx);
+		f->R.rax = call_write(f->R.rdi, f->R.rsi, f->R.rdx);
 		break;
 	case SYS_EXIT:
 		call_exit(curr, f->R.rdi);
@@ -74,6 +76,9 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	case SYS_FILESIZE:
 		f->R.rax = call_filesize(f->R.rdi);
 		break;
+	case SYS_WAIT:
+		f->R.rax = call_wait(f->R.rdi);
+		break;
 
 	default:
 		exit(-1);
@@ -89,11 +94,28 @@ void call_exit(struct thread *curr, uint64_t status)
 	return;
 }
 
-int call_write(const void *buffer, unsigned size)
-{
-	putbuf(buffer, size);
+// int call_write(const void *buffer, unsigned size)
+// {
+// 	putbuf(buffer, size);
 
-	return;
+// 	return;
+// }
+
+int call_write(int fd, const void *buffer, unsigned size)
+{
+	struct file *file = find_file_by_Fd(fd);
+
+	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
+	{
+		putbuf(buffer, size);
+		return 0;
+	}else if(!file || fd == 0){
+		exit(-1);
+	}
+	
+	check_addr(buffer);
+	
+	return file_write(file, buffer, size);
 }
 bool call_create(const char *file, unsigned initial_size)
 {
@@ -163,6 +185,13 @@ int call_read(int fd, void *buffer, unsigned size)
 	return read_result;
 }
 
+int call_wait(pid_t pid){
+	for(int i = 0; i<2000000000; i++){
+
+	}
+	return 0;
+}
+
 int call_filesize(int fd)
 {
 	struct file *file = find_file_by_Fd(fd);
@@ -223,3 +252,4 @@ void check_addr(const uint64_t *addr)
 		exit(-1);
 	}
 }
+
