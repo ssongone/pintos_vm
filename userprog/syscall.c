@@ -185,7 +185,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	return read_result;
 }
 
-int call_wait(pid_t pid){
+int call_wait(int pid){
 	for(int i = 0; i<2000000000; i++){
 
 	}
