@@ -222,9 +222,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	// for(int i = 0; i<1000000000; i++){
-
-	// }
+	
 	return -1;
 }
 
@@ -494,6 +492,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	
 	// hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
 	
+	// file_deny_write()
+
 done:
 	/* We arrive here whether the load is successful or not. */
 	file_close (file);
