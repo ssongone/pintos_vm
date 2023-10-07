@@ -80,7 +80,8 @@ void syscall_handler(struct intr_frame *f)
 		f->R.rax = call_wait(f->R.rdi);
 		break;
 	case SYS_FORK:
-		f->R.rax = call_fork(f->R.rdi, f);
+		memcpy(&curr->ptf, f, sizeof(struct intr_frame));
+		f->R.rax = call_fork(f->R.rdi);
 		break;
 
 	default:
@@ -90,7 +91,8 @@ void syscall_handler(struct intr_frame *f)
 }
 
 void call_exit(struct thread *curr, uint64_t status)
-{
+{	
+	curr->exit_status = status;
 	printf("%s: exit(%d)\n", curr->name, status);
 	thread_exit();
 
@@ -204,10 +206,9 @@ int call_filesize(int fd)
 	return file_length(file);
 }
 
-int call_fork (const char *thread_name, struct intr_frame *f){
-	// struct intr_frame parent_if = thread_current()->tf;
-	// printf("지금 받는 인자 : %s, thread_current : %s\n", thread_name, thread_current()->name);
-	return process_fork(thread_name, f);
+int call_fork (const char *thread_name){
+	check_addr(thread_name);
+	return process_fork(thread_name, &thread_current()->ptf);
 }
 
 
@@ -219,6 +220,7 @@ int call_fork (const char *thread_name, struct intr_frame *f){
 void exit(int status)
 {
 	struct thread *curr = thread_current();
+	curr->exit_status = status;
 	printf("%s: exit(%d)\n", curr->name, status);
 	thread_exit();
 }

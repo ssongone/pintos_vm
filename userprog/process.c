@@ -34,8 +34,6 @@ void args_to_stack(char **argv_list, int count, char **rsp);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
-	thread_current()->fd_table = palloc_get_page(0);
-	thread_current()->fd_idx = 2;
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -92,7 +90,6 @@ process_fork (const char *name, struct intr_frame *if_) {
 	// return tmp;
 
 	struct thread *cur = thread_current();
-	memcpy(&cur->saved_if, if_, sizeof(struct intr_frame));
 
 	tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
 	if (tid == TID_ERROR) {
@@ -100,11 +97,10 @@ process_fork (const char *name, struct intr_frame *if_) {
 	}
 
 	struct thread *child = get_child_with_pid(tid);
-	sema_down(&child->fork_sema);
+	sema_down(&cur->fork_sema);
 	if (child->exit_status == -1) {
 		return TID_ERROR;
 	}
-
 	return tid;
 }
 
@@ -149,7 +145,6 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
-		printf("Failed to map user virtual page to given physical frame\n"); // #ifdef DEBUG
 		return false;
 	}
 	return true;
@@ -167,10 +162,10 @@ __do_fork (void *aux) {
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = &parent->ptf;
 	bool succ = true;
 
-	parent_if = &parent->tf;
+	
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
 	if_.R.rax = 0;
@@ -204,34 +199,28 @@ __do_fork (void *aux) {
 	// add_file_to_fdt(new_file);
 	// }
 
-	for (int i = 0; i < FDCOUNT_LIMIT; i++) {
-		struct file *file = parent->fd_table[i];
-		if (file == NULL)
-			continue;
-
-		// If 'file' is already duplicated in child, don't duplicate again but share it
-		bool found = false;
-		if (!found) {
-			struct file *new_file;
-			if (file > 2)
-				new_file = file_duplicate(file);
-			else
-				new_file = file;
-
-			current->fd_table[i] = new_file;
+	int cnt = 2;
+	struct file **table = parent->fd_table;
+	while (cnt < 128) {
+		if (table[cnt]) {
+			current->fd_table[cnt] = file_duplicate(table[cnt]);
+		} else {
+			current->fd_table[cnt] = NULL;
 		}
+		cnt++;
 	}
 	current->fd_idx = parent->fd_idx;
-	sema_up(&current->fork_sema);
-	//여기서 process가 성공적으로 복제되었는지 알기전까지 fork에서 반환 x, 복제못하면 TID_ERROR 반환.
+	sema_up(&parent->fork_sema);
+	
+	// process_init();
 
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
 
-	sema_up(&parent->fork_sema);
+	
 error:
-	sema_up(&current->fork_sema);
+	sema_up(&parent->fork_sema);
 	thread_exit ();
 }
 
@@ -280,6 +269,20 @@ process_exec (void *f_name) {
 	NOT_REACHED ();
 }
 
+struct thread *get_child_with_pid(int pid){
+	struct thread *cur = thread_current();
+	struct list *child_list = &cur->child_list;
+  	struct list_elem *cur_child = list_begin(child_list);
+
+  while (cur_child != list_end(child_list)) {
+    struct thread *cur_t = list_entry(cur_child, struct thread, child_elem);
+    if (cur_t->tid == pid) {
+      return cur_t;
+    }
+    cur_child = list_next(cur_child);
+  }
+  return NULL;
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -302,13 +305,14 @@ int process_wait (tid_t child_tid UNUSED) {
 		return -1;
 
 	// Parent waits until child signals (sema_up) after its execution
-	sema_down(&child->fork_sema);
+	sema_down(&child->sema_wait);
 
 	int exit_status = child->exit_status;
 
 	// Keep child page so parent can get exit_status
+
 	list_remove(&child->child_elem);
-	sema_up(&child->free_sema); // wake-up child in process_exit - proceed with thread_exit
+	sema_up(&child->sema_exit); // wake-up child in process_exit - proceed with thread_exit
 	return exit_status;	
 }
 
@@ -316,10 +320,23 @@ int process_wait (tid_t child_tid UNUSED) {
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
+	struct file **table = curr->fd_table;
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	int cnt = 2;
+	while (cnt < 128) {
+		if (table[cnt]) { // != 0 && table[cnt] != NULL
+			file_close(table[cnt]);
+			table[cnt] = NULL;
+		}
+		cnt++;
+	}
+
+	sema_up(&curr->sema_wait);
+	sema_down(&curr->sema_exit);
+
 	palloc_free_page(thread_current()->fd_table);
 	process_cleanup ();
 }
