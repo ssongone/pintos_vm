@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -96,7 +97,6 @@ struct thread {
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 	int64_t endTick;
-
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
@@ -107,6 +107,13 @@ struct thread {
 
 	struct file** fd_table;
 	int fd_idx;
+
+	struct semaphore fork_sema;
+	//**
+	struct list child_list;
+	struct list_elem child_elem;
+	int exit_status;
+	//**
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -119,6 +126,7 @@ struct thread {
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
+	struct intr_frame saved_if;	
 	unsigned magic;                     /* Detects stack overflow. */
 };
 

@@ -194,7 +194,7 @@ thread_create (const char *name, int priority,
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
-
+	// printf("만들어진 thread의 tid = %d\n", tid);
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t) kernel_thread;
@@ -212,7 +212,7 @@ thread_create (const char *name, int priority,
 	
 	if (t->priority > thread_current()->priority) {
         thread_yield();
-    	}
+    }
 	return tid;
 }
 
@@ -443,6 +443,8 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->priority_origin = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+	sema_init(&t->fork_sema, 0);
+	list_init(&t->child_list);
 
 	t->magic = THREAD_MAGIC;
 }
@@ -671,7 +673,7 @@ bool compare(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
 	struct thread *t_a = list_entry(a, struct thread, elem);
 	struct thread *t_b = list_entry(b, struct thread, elem);
-	return t_a->priority < t_b->priority;
+	return t_a->priority < t_b->priority; 
 }
 
 bool compare_reverse(const struct list_elem *a, const struct list_elem *b, void *aux)
