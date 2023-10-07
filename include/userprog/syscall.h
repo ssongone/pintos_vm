@@ -21,7 +21,7 @@ int call_open(const char *file);
 int call_read(int fd, void *buffer, unsigned size);
 int call_filesize(int fd);
 int call_wait(int pid);
-int call_fork (const char *thread_name, struct intr_frame *f);
+int call_fork (const char *thread_name);
 
 
 

@@ -206,6 +206,20 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	t->parent_t = thread_current();
+	sema_init(&t->fork_sema, 0); // 변경
+	sema_init(&t->sema_exit, 0); // 변경 
+	sema_init(&t->sema_wait, 0); // 변경
+
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+
+	t->fd_table = palloc_get_page(PAL_ZERO);
+	if(t->fd_table == NULL){
+		return TID_ERROR;
+	}
+	// t->fd_table[0] = 1;
+	// t->fd_table[1] = 2;
+	t->fd_idx = 2;
 	/* Add to run queue. */
 	thread_unblock (t);
 
@@ -442,8 +456,9 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->priority = priority;
 	t->priority_origin = priority;
 	t->wait_on_lock = NULL;
+
+
 	list_init(&t->donations);
-	sema_init(&t->fork_sema, 0);
 	list_init(&t->child_list);
 
 	t->magic = THREAD_MAGIC;

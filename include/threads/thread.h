@@ -109,10 +109,14 @@ struct thread {
 	int fd_idx;
 
 	struct semaphore fork_sema;
+	struct semaphore sema_wait;
+	struct semaphore sema_exit;
 	//**
 	struct list child_list;
 	struct list_elem child_elem;
 	int exit_status;
+
+	struct thread *parent_t;
 	//**
 
 #ifdef USERPROG
@@ -126,7 +130,7 @@ struct thread {
 
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
-	struct intr_frame saved_if;	
+	struct intr_frame ptf;
 	unsigned magic;                     /* Detects stack overflow. */
 };
 
