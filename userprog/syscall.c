@@ -8,6 +8,7 @@
 #include "threads/flags.h"
 #include "intrinsic.h"
 
+#include "userprog/process.h"
 #include "threads/palloc.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -42,11 +43,10 @@ void syscall_init(void)
 }
 
 /* The main system call interface */
-void syscall_handler(struct intr_frame *f UNUSED)
-{
+void syscall_handler(struct intr_frame *f)
+{	struct thread* curr = thread_current();
 	// TODO: Your implementation goes here.
 	// printf ("system call!\n");
-	struct thread *curr = thread_current();
 
 	switch (f->R.rax)
 	{
@@ -79,6 +79,9 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	case SYS_WAIT:
 		f->R.rax = call_wait(f->R.rdi);
 		break;
+	case SYS_FORK:
+		f->R.rax = call_fork(f->R.rdi, f);
+		break;
 
 	default:
 		exit(-1);
@@ -104,7 +107,7 @@ void call_exit(struct thread *curr, uint64_t status)
 int call_write(int fd, const void *buffer, unsigned size)
 {
 	struct file *file = find_file_by_Fd(fd);
-
+	// printf("지금 write call 한넘 : %s\n", thread_current()->name);
 	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
 	{
 		putbuf(buffer, size);
@@ -115,7 +118,7 @@ int call_write(int fd, const void *buffer, unsigned size)
 	
 	check_addr(buffer);
 	
-	return file_write(file, buffer, size);
+	return file_write(file, buffer, size); // TODO : lock걸어줘야함.
 }
 bool call_create(const char *file, unsigned initial_size)
 {
@@ -179,17 +182,14 @@ int call_read(int fd, void *buffer, unsigned size)
 	}
 	else
 	{
-		read_result = file_read(find_file_by_Fd(fd), buffer, size);
+		read_result = file_read(find_file_by_Fd(fd), buffer, size); // TODO : lock걸어야함
 	}
 
 	return read_result;
 }
 
-int call_wait(int pid){
-	for(int i = 0; i<2000000000; i++){
-
-	}
-	return 0;
+int call_wait (tid_t child_tid) {
+	return process_wait(child_tid);
 }
 
 int call_filesize(int fd)
@@ -203,6 +203,17 @@ int call_filesize(int fd)
 
 	return file_length(file);
 }
+
+int call_fork (const char *thread_name, struct intr_frame *f){
+	// struct intr_frame parent_if = thread_current()->tf;
+	// printf("지금 받는 인자 : %s, thread_current : %s\n", thread_name, thread_current()->name);
+	return process_fork(thread_name, f);
+}
+
+
+
+
+
 
 // fd값을 return, 실패시 -1을 return
 void exit(int status)
