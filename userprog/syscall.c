@@ -83,6 +83,10 @@ void syscall_handler(struct intr_frame *f)
 		memcpy(&curr->ptf, f, sizeof(struct intr_frame));
 		f->R.rax = call_fork(f->R.rdi);
 		break;
+	case SYS_EXEC:
+		f->R.rax = call_exec(f->R.rdi);
+		break;
+
 
 	default:
 		call_exit(curr,-1);
@@ -202,9 +206,24 @@ int call_filesize(int fd)
 }
 
 int call_fork (const char *thread_name){
-	// check_addr(thread_name);
+	check_addr(thread_name);
 	return process_fork(thread_name, &thread_current()->ptf);
 }
+
+int call_exec (const char *file){
+	char *file_copy;
+	check_addr(file);
+	// int a = 0;
+
+
+	file_copy = palloc_get_page(0);
+	// file_copy = file
+
+	strlcpy(file_copy, file, strlen(file)+1);
+	
+	return process_exec(file_copy);;
+}
+
 
 // fd값을 return, 실패시 -1을 return
 void exit(int status)
