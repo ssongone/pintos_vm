@@ -86,6 +86,16 @@ void syscall_handler(struct intr_frame *f)
 	case SYS_EXEC:
 		f->R.rax = call_exec(f->R.rdi);
 		break;
+	case SYS_REMOVE:
+		f->R.rax = call_remove(f->R.rdi);
+		break;
+	case SYS_SEEK:
+		call_seek(f->R.rdi, f->R.rsi);
+		break;
+	case SYS_TELL:
+		f->R.rax = call_tell(f->R.rdi);
+		break;
+
 
 
 	default:
@@ -108,23 +118,26 @@ void call_exit(struct thread *curr, uint64_t status)
 
 int call_write(int fd, const void *buffer, unsigned size)
 {
-	struct file *file = find_file_by_Fd(fd);
+	check_addr(buffer);
+	
 	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
 	{
 		putbuf(buffer, size);
-		return 0;
-	}else if(!file || fd == 0){
-		call_exit(thread_current(),-1);
+		return size;
 	}
-	
-	check_addr(buffer);
+	if(fd == 0){
+		return -1;
+	}
+	struct file *file = find_file_by_Fd(fd);
+	if(file == NULL){
+		call_exit(thread_current(), -1);
+	}
 	
 	return file_write(file, buffer, size); // TODO : lock걸어줘야함.
 }
 bool call_create(const char *file, unsigned initial_size)
 {
-
-	check_addr(file);
+	check_addr(file);	
 	return filesys_create(file, initial_size);
 }
 
@@ -135,6 +148,7 @@ void call_halt(void)
 
 int call_open(const char *file)
 {
+	
 
 	check_addr(file);
 	struct file *open_file = filesys_open(file);
@@ -171,11 +185,21 @@ void call_close(int fd)
 
 int call_read(int fd, void *buffer, unsigned size)
 {
-	struct file *file = find_file_by_Fd(fd);
-	int read_result;
-
 	check_addr(buffer);
 
+	if(fd == 1){
+		return -1;
+	}
+	if(fd == 0){
+		int byte = input_getc();
+		return byte;
+	}
+
+
+	struct file *file = find_file_by_Fd(fd);
+	int read_result;
+	
+	
 	if (file == NULL)
 	{
 		call_exit(thread_current(),-1);
@@ -225,20 +249,44 @@ int call_exec (const char *file){
 }
 
 
-// fd값을 return, 실패시 -1을 return
-void exit(int status)
-{
-	struct thread *curr = thread_current();
-	curr->exit_status = status;
-	curr->tf.R.rax = status;
-	thread_exit();
+//--------------
+bool call_remove(const char *file){
+
+	check_addr(file);
+
+	return filesys_remove(file);
 }
+
+void call_seek(int fd, unsigned new_pos){
+	struct file *cur = thread_current()->fd_table[fd];
+	
+	if(cur != NULL){
+		file_seek(cur, new_pos);
+	}
+}
+
+unsigned call_tell(int fd){
+	struct file *cur = thread_current()->fd_table[fd];
+	
+	if(cur != NULL){
+		return file_tell(cur);
+	}
+}
+//----------
+
+// fd값을 return, 실패시 -1을 return
+// void exit(int status)
+// {
+// 	struct thread *curr = thread_current();
+// 	curr->exit_status = status;
+// 	curr->tf.R.rax = status;
+// 	thread_exit();
+// }
 
 int add_file_to_fdt(struct file *file)
 {
 	struct thread *cur = thread_current();
 	struct file **fdt = cur->fd_table;
-
 	// fd의 위치가 제한 범위를 넘지않고, fdtable의 인덱스 위치와 일치하면 fd index += 1
 	while (cur->fd_idx < FDCOUNT_LIMIT && fdt[cur->fd_idx])
 	{
