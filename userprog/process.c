@@ -229,28 +229,18 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
+	// printf("f_name : %s, f_name address : %p\n", f_name, &f_name);
+
+	// f_name = "hello";
 
 	bool success;
 
-	/* We cannot use the intr_frame in the thread structure.
-	 * This is because when current thread rescheduled,
-	 * it stores the execution information to the member. */
+	/* "우리는 스레드 구조체 내의 intr_frame을 사용할 수 없습니다.
+		이는 현재 스레드가 리스케줄링될 때, 실행 정보를 해당 멤버에 저장하기 때문입니다. */
 	struct intr_frame _if;
 	_if.ds = _if.es = _if.ss = SEL_UDSEG;
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
-
-    // char *save_ptr;
-	// char *token;
-	// int argc = 0;
-
-	// token = strtok_r(f_name, " ", &save_ptr);
-	// while (token != NULL) {
-	// 	argc++;
-    //     printf("Token: %s\n", token);
-    //     token = strtok_r(NULL, " ", &save_ptr);
-    // }
-	// printf("argc: %d\n", argc);
 
 
 	/* We first kill the current context */
@@ -258,11 +248,12 @@ process_exec (void *f_name) {
 	/* And then load the binary */
 	// printf("몇번\n");
 	success = load (file_name, &_if);
-	
+	// printf("success : %d\n", success);
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
-		return -1;
+		exit(-1);
+		// return -1;
 
 	/* Start switched process. */
 	do_iret (&_if);
