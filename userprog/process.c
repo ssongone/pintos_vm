@@ -34,6 +34,7 @@ void args_to_stack(char **argv_list, int count, char **rsp);
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	current->is_user_prog = 1;
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -98,6 +99,7 @@ process_fork (const char *name, struct intr_frame *if_) {
 
 	struct thread *child = get_child_with_pid(tid);
 	sema_down(&cur->fork_sema);
+	//	자식이 성공적으로 fork가 될때까지 기다려.. 다 기다렸으면 tid를 리턴하고 자기 할거 해
 	if (child->exit_status == -1) {
 		return TID_ERROR;
 	}
@@ -190,9 +192,7 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-	// process_init ();
-	
-	
+		
 	// // 부모가 가지고 있는 file table 값을 그대로 복사해주어야해!
 	// for(int i = 0; i<FDCOUNT_LIMIT; i++){
 	// struct file* new_file = file_duplicate(parent->fd_table[i]);
@@ -210,12 +210,12 @@ __do_fork (void *aux) {
 		cnt++;
 	}
 	current->fd_idx = parent->fd_idx;
+
+	process_init();
 	sema_up(&parent->fork_sema);
 	
-	// process_init();
-
 	/* Finally, switch to the newly created process. */
-	if (succ)
+	if (succ) 
 		do_iret (&if_);
 
 	
@@ -293,7 +293,7 @@ struct thread *get_child_with_pid(int pid){
  *
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
-int process_wait (tid_t child_tid UNUSED) {
+int process_wait (tid_t child_tid) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
@@ -325,6 +325,11 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	
+	if (curr->is_user_prog) {
+		printf("%s: exit(%d)\n", curr->name, curr->tf.R.rax);
+	}
+	
 	int cnt = 2;
 	while (cnt < 128) {
 		if (table[cnt]) { // != 0 && table[cnt] != NULL

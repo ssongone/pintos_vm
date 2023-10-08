@@ -85,7 +85,7 @@ void syscall_handler(struct intr_frame *f)
 		break;
 
 	default:
-		exit(-1);
+		call_exit(curr,-1);
 		break;
 	}
 }
@@ -93,29 +93,24 @@ void syscall_handler(struct intr_frame *f)
 void call_exit(struct thread *curr, uint64_t status)
 {	
 	curr->exit_status = status;
-	printf("%s: exit(%d)\n", curr->name, status);
+	
+	curr->tf.R.rax = status;
+	// printf("%s: exit(%d)\n", curr->name, status);
+	
 	thread_exit();
-
 	return;
 }
 
-// int call_write(const void *buffer, unsigned size)
-// {
-// 	putbuf(buffer, size);
-
-// 	return;
-// }
 
 int call_write(int fd, const void *buffer, unsigned size)
 {
 	struct file *file = find_file_by_Fd(fd);
-	// printf("지금 write call 한넘 : %s\n", thread_current()->name);
 	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
 	{
 		putbuf(buffer, size);
 		return 0;
 	}else if(!file || fd == 0){
-		exit(-1);
+		call_exit(thread_current(),-1);
 	}
 	
 	check_addr(buffer);
@@ -163,7 +158,7 @@ void call_close(int fd)
 
 	if (file == NULL)
 	{
-		exit(-1);
+		call_exit(thread_current(),-1);
 		return;
 	}
 	file_close(file);
@@ -179,7 +174,7 @@ int call_read(int fd, void *buffer, unsigned size)
 
 	if (file == NULL)
 	{
-		exit(-1);
+		call_exit(thread_current(),-1);
 		return -1;
 	}
 	else
@@ -207,21 +202,16 @@ int call_filesize(int fd)
 }
 
 int call_fork (const char *thread_name){
-	check_addr(thread_name);
+	// check_addr(thread_name);
 	return process_fork(thread_name, &thread_current()->ptf);
 }
-
-
-
-
-
 
 // fd값을 return, 실패시 -1을 return
 void exit(int status)
 {
 	struct thread *curr = thread_current();
 	curr->exit_status = status;
-	printf("%s: exit(%d)\n", curr->name, status);
+	curr->tf.R.rax = status;
 	thread_exit();
 }
 
@@ -262,7 +252,8 @@ void check_addr(const uint64_t *addr)
 	struct thread *curr = thread_current();
 	if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(curr->pml4, addr) == NULL)
 	{
-		exit(-1);
+		//exit(-1);
+		call_exit(curr, -1);
 	}
 }
 

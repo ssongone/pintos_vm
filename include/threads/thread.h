@@ -108,6 +108,8 @@ struct thread {
 	struct file** fd_table;
 	int fd_idx;
 
+	int is_user_prog;
+
 	struct semaphore fork_sema;
 	struct semaphore sema_wait;
 	struct semaphore sema_exit;

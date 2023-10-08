@@ -207,9 +207,9 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	t->parent_t = thread_current();
-	sema_init(&t->fork_sema, 0); // 변경
-	sema_init(&t->sema_exit, 0); // 변경 
-	sema_init(&t->sema_wait, 0); // 변경
+	sema_init(&t->fork_sema, 0); 
+	sema_init(&t->sema_exit, 0); 
+	sema_init(&t->sema_wait, 0);
 
 	list_push_back(&thread_current()->child_list, &t->child_elem);
 
@@ -217,8 +217,7 @@ thread_create (const char *name, int priority,
 	if(t->fd_table == NULL){
 		return TID_ERROR;
 	}
-	// t->fd_table[0] = 1;
-	// t->fd_table[1] = 2;
+
 	t->fd_idx = 2;
 	/* Add to run queue. */
 	thread_unblock (t);
