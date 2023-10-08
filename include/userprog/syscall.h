@@ -23,6 +23,9 @@ int call_filesize(int fd);
 int call_wait(int pid);
 int call_fork (const char *thread_name);
 int call_exec (const char *file);
+bool call_remove(const char *file);
+void call_seek(int fd, unsigned new_pos);
+unsigned call_tell(int fd);
 
 
 

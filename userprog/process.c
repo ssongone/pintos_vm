@@ -252,7 +252,7 @@ process_exec (void *f_name) {
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
-		exit(-1);
+		call_exit(-1, thread_current());
 		// return -1;
 
 	/* Start switched process. */
@@ -321,6 +321,10 @@ process_exit (void) {
 		printf("%s: exit(%d)\n", curr->name, curr->tf.R.rax);
 	}
 	
+	if(curr->file_cur){
+		file_close(curr->file_cur);
+	}
+
 	int cnt = 2;
 	while (cnt < 128) {
 		if (table[cnt]) { // != 0 && table[cnt] != NULL
@@ -479,6 +483,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	// @@
 	/* Open executable file. */
 	// file_name = "args-single";
+	
 	file = filesys_open (file_name);
 	bool hello = true;
 	if (file == NULL) {
@@ -591,12 +596,11 @@ load (const char *file_name, struct intr_frame *if_) {
     success = true;
 	
 	// hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
-	
-	// file_deny_write()
+	t->file_cur = file;
+	file_deny_write(file);
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
 	return success;
 }
 

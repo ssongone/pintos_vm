@@ -212,7 +212,11 @@ thread_create (const char *name, int priority,
 	sema_init(&t->sema_wait, 0);
 
 	list_push_back(&thread_current()->child_list, &t->child_elem);
-
+	t->fork_depth = thread_current()->fork_depth+1; // 이거 틀리면 지우기
+	if(t->fork_depth >9){
+		printf("ddd\n");
+		call_exit(-1, thread_current());
+	}
 	t->fd_table = palloc_get_page(PAL_ZERO);
 	if(t->fd_table == NULL){
 		return TID_ERROR;
@@ -459,6 +463,7 @@ init_thread(struct thread *t, const char *name, int priority)
 
 	list_init(&t->donations);
 	list_init(&t->child_list);
+	t->fork_depth = 0;
 
 	t->magic = THREAD_MAGIC;
 }

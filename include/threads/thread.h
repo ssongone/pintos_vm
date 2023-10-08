@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "threads/interrupt.h"
 #include "threads/synch.h"
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -110,6 +111,7 @@ struct thread {
 
 	int is_user_prog;
 
+	struct file* file_cur;
 	struct semaphore fork_sema;
 	struct semaphore sema_wait;
 	struct semaphore sema_exit;
@@ -119,6 +121,9 @@ struct thread {
 	int exit_status;
 
 	struct thread *parent_t;
+
+	int fork_depth;
+	
 	//**
 
 #ifdef USERPROG
