@@ -34,4 +34,4 @@ source ../../activate
 # pintos --fs-disk=10 -p tests/userprog/create-empty:create-empty -- -q   -f run create-empty 
 
 # pintos  --fs-disk=10 -p tests/userprog/bad-read:bad-read -- -q   -f run bad-read 
-pintos -v -k -T 600 -m 20 -m 20   --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q   -f run multi-oom 
+pintos --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q   -f run multi-oom 

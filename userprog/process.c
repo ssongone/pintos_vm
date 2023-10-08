@@ -460,30 +460,13 @@ load (const char *file_name, struct intr_frame *if_) {
 		argv_token[argc++] = token;
 	}
 
-
-    // printf("argc: %d\n", argc);
-    // printf("argv[0] = %s\n", argv_token[0]);
-    // printf("argv[1] = %s\n", argv_token[1]);
-	// // printf("rsp_address[0] = %x\n", rsp_address[0]);
-	// // printf("rsp_address[1] = %x\n", rsp_address[1]);
-	
-	// if_->R.rsi = argc;
-
-
-	// file_name = "args-single";
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
 	
-	/* Open executable file. */
-	// char *save_ptr;
-	// char * token = strtok_r(file_name, " ", &save_ptr);
-	// @@
-	/* Open executable file. */
-	// file_name = "args-single";
-	
+	/* Open executable file. */	
 	file = filesys_open (file_name);
 	bool hello = true;
 	if (file == NULL) {

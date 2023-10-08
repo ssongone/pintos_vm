@@ -133,7 +133,11 @@ int call_write(int fd, const void *buffer, unsigned size)
 		call_exit(thread_current(), -1);
 	}
 	
-	return file_write(file, buffer, size); // TODO : lock걸어줘야함.
+	if (!file->deny_write) {	
+		return 0;
+	}
+
+	return file_write(file, buffer, size);
 }
 bool call_create(const char *file, unsigned initial_size)
 {
