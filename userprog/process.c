@@ -30,11 +30,13 @@ static void initd (void *f_name);
 static void __do_fork (void *);
 void args_to_stack(char **argv_list, int count, char **rsp);
 
+struct semaphore exec_sema;
+
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
-	current->is_user_prog = 1;
+	// current->is_user_prog = 1;
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -46,7 +48,6 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
@@ -57,6 +58,7 @@ process_create_initd (const char *file_name) {
 	char *save_ptr;
 	strtok_r(file_name, " ", &save_ptr);
 
+	sema_init(&exec_sema, 1);
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
@@ -91,7 +93,9 @@ process_fork (const char *name, struct intr_frame *if_) {
 	// return tmp;
 
 	struct thread *cur = thread_current();
-
+	if(cur->fork_depth > 30){
+		return TID_ERROR;
+	}
 	tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
 	if (tid == TID_ERROR) {
 		return TID_ERROR;
@@ -103,6 +107,7 @@ process_fork (const char *name, struct intr_frame *if_) {
 	if (child->exit_status == -1) {
 		return TID_ERROR;
 	}
+	
 	return tid;
 }
 
@@ -229,8 +234,6 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
-	// printf("f_name : %s, f_name address : %p\n", f_name, &f_name);
-
 	// f_name = "hello";
 
 	bool success;
@@ -247,13 +250,16 @@ process_exec (void *f_name) {
 	process_cleanup ();
 	/* And then load the binary */
 	// printf("몇번\n");
+	sema_down(&exec_sema);
 	success = load (file_name, &_if);
-	// printf("success : %d\n", success);
+	sema_up(&exec_sema);
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
-		call_exit(-1, thread_current());
-		// return -1;
+		// call_exit(-1, thread_current());
+		return -1;
+
+
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -317,14 +323,13 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 	
-	if (curr->is_user_prog) {
-		printf("%s: exit(%d)\n", curr->name, curr->tf.R.rax);
-	}
-	
 	if(curr->file_cur){
 		file_close(curr->file_cur);
 	}
-
+	// if (curr->is_user_prog) {
+	// 	printf("%s: exit(%d)\n", curr->name, curr->tf.R.rax);
+	// }
+	
 	int cnt = 2;
 	while (cnt < 128) {
 		if (table[cnt]) { // != 0 && table[cnt] != NULL
@@ -467,7 +472,9 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 	
 	/* Open executable file. */	
+
 	file = filesys_open (file_name);
+
 	bool hello = true;
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);

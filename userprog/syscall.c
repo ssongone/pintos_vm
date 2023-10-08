@@ -108,8 +108,8 @@ void call_exit(struct thread *curr, uint64_t status)
 {	
 	curr->exit_status = status;
 	
-	curr->tf.R.rax = status;
-	// printf("%s: exit(%d)\n", curr->name, status);
+	// curr->tf.R.rax = status;
+	printf("%s: exit(%d)\n", curr->name, status);
 	
 	thread_exit();
 	return;
@@ -133,7 +133,7 @@ int call_write(int fd, const void *buffer, unsigned size)
 		call_exit(thread_current(), -1);
 	}
 	
-	if (!file->deny_write) {	
+	if (file->deny_write) {	
 		return 0;
 	}
 
@@ -180,11 +180,11 @@ void call_close(int fd)
 
 	if (file == NULL)
 	{
-		call_exit(thread_current(),-1);
+		// call_exit(thread_current(),-1);
 		return;
 	}
-	file_close(file);
 	cur->fd_table[fd] = NULL;
+	file_close(file);
 }
 
 int call_read(int fd, void *buffer, unsigned size)
@@ -235,6 +235,7 @@ int call_filesize(int fd)
 
 int call_fork (const char *thread_name){
 	check_addr(thread_name);
+
 	return process_fork(thread_name, &thread_current()->ptf);
 }
 
@@ -246,10 +247,18 @@ int call_exec (const char *file){
 
 	file_copy = palloc_get_page(0);
 	// file_copy = file
+	if(!file_copy){
+		call_exit(thread_current(), -1);
+		return -1;
+	}
 
 	strlcpy(file_copy, file, strlen(file)+1);
+	if(process_exec(file_copy) == -1){
+		
+		call_exit(thread_current(), -1);
+		return -1;
+	}
 	
-	return process_exec(file_copy);;
 }
 
 
