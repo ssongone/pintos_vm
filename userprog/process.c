@@ -93,9 +93,9 @@ process_fork (const char *name, struct intr_frame *if_) {
 	// return tmp;
 
 	struct thread *cur = thread_current();
-	if(cur->fork_depth > 30){
-		return TID_ERROR;
-	}
+	// if(cur->fork_depth > 30){
+	// 	return TID_ERROR;
+	// }
 	tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
 	if (tid == TID_ERROR) {
 		return TID_ERROR;

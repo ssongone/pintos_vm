@@ -162,13 +162,13 @@ void call_halt(void)
 int call_open(const char *file)
 {
 	check_addr(file);
-	sema_down(&syn_sema);
+	// sema_down(&syn_sema);
 
 	struct file *open_file = filesys_open(file);
 
 	if (open_file == NULL)
 	{
-		sema_up(&syn_sema);
+		// sema_up(&syn_sema);
 		return -1;
 	}
 
@@ -179,7 +179,7 @@ int call_open(const char *file)
 	{
 		file_close(open_file);
 	}
-	sema_up(&syn_sema);
+	// sema_up(&syn_sema);
 
 	return fd;
 }
@@ -250,8 +250,13 @@ int call_filesize(int fd)
 
 int call_fork (const char *thread_name){
 	check_addr(thread_name);
+	
+	int tmp = process_fork (thread_name, &thread_current()->ptf);
+	if(tmp == TID_ERROR){
+		call_exit(thread_current(), TID_ERROR);
+	}
 
-	return process_fork(thread_name, &thread_current()->ptf);
+	return tmp;
 }
 
 int call_exec (const char *file){
@@ -281,8 +286,10 @@ int call_exec (const char *file){
 bool call_remove(const char *file){
 
 	check_addr(file);
-
-	return filesys_remove(file);
+	sema_down(&syn_sema);
+	bool return_ans = filesys_remove(file);
+	sema_up(&syn_sema);
+	return return_ans;
 }
 
 void call_seek(int fd, unsigned new_pos){
