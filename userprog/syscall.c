@@ -14,7 +14,6 @@
 #include "filesys/filesys.h"
 #include "threads/synch.h"
 
-
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 
@@ -49,15 +48,13 @@ void syscall_init(void)
 
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f)
-{	struct thread* curr = thread_current();
+{
+	struct thread *curr = thread_current();
 	// TODO: Your implementation goes here.
-	// printf ("system call!\n");
 
 	switch (f->R.rax)
 	{
 	case SYS_WRITE:
-		// f->R.rax = call_write(f->R.rsi, f->R.rdx);
-		// printf("rid, rsi, rdx : %d, %p, %d\n", f->R.rdi, f->R.rsi, f->R.rdx);
 		f->R.rax = call_write(f->R.rdi, f->R.rsi, f->R.rdx);
 		break;
 	case SYS_EXIT:
@@ -101,25 +98,21 @@ void syscall_handler(struct intr_frame *f)
 		f->R.rax = call_tell(f->R.rdi);
 		break;
 
-
-
 	default:
-		call_exit(curr,-1);
+		call_exit(curr, -1);
 		break;
 	}
 }
 
 void call_exit(struct thread *curr, uint64_t status)
-{	
+{
 	curr->exit_status = status;
-	
-	// curr->tf.R.rax = status;
+
 	printf("%s: exit(%d)\n", curr->name, status);
-	
+
 	thread_exit();
 	return;
 }
-
 
 int call_write(int fd, const void *buffer, unsigned size)
 {
@@ -132,25 +125,29 @@ int call_write(int fd, const void *buffer, unsigned size)
 		sema_up(&syn_sema);
 		return size;
 	}
-	if(fd == 0){
+	if (fd == 0)
+	{
 		sema_up(&syn_sema);
 		return -1;
 	}
 	struct file *file = find_file_by_Fd(fd);
-	if(file == NULL){
+	if (file == NULL)
+	{
 		call_exit(thread_current(), -1);
 	}
-	
-	if (file->deny_write) {	
+
+	if (file->deny_write)
+	{
 		sema_up(&syn_sema);
 		return 0;
 	}
+	int write_byte = file_write(file, buffer, size);
 	sema_up(&syn_sema);
-	return file_write(file, buffer, size);
+	return write_byte;
 }
 bool call_create(const char *file, unsigned initial_size)
 {
-	check_addr(file);	
+	check_addr(file);
 	return filesys_create(file, initial_size);
 }
 
@@ -162,24 +159,20 @@ void call_halt(void)
 int call_open(const char *file)
 {
 	check_addr(file);
-	// sema_down(&syn_sema);
 
 	struct file *open_file = filesys_open(file);
 
 	if (open_file == NULL)
 	{
-		// sema_up(&syn_sema);
 		return -1;
 	}
 
 	int fd = add_file_to_fdt(open_file);
 
-	// fd table 가득 찼다면
 	if (fd == -1)
 	{
 		file_close(open_file);
 	}
-	// sema_up(&syn_sema);
 
 	return fd;
 }
@@ -191,11 +184,10 @@ void call_close(int fd)
 	struct file *file = find_file_by_Fd(fd);
 	if (file == NULL)
 	{
-		// call_exit(thread_current(),-1);
 		return;
 	}
 	cur->fd_table[fd] = NULL;
-	
+
 	file_close(file);
 }
 
@@ -203,10 +195,12 @@ int call_read(int fd, void *buffer, unsigned size)
 {
 	check_addr(buffer);
 
-	if(fd == 1){
+	if (fd == 1)
+	{
 		return -1;
 	}
-	if(fd == 0){
+	if (fd == 0)
+	{
 		int byte = input_getc();
 		return byte;
 	}
@@ -215,24 +209,24 @@ int call_read(int fd, void *buffer, unsigned size)
 
 	struct file *file = find_file_by_Fd(fd);
 	int read_result;
-	
-	
+
 	if (file == NULL)
 	{
 		sema_up(&syn_sema);
-		call_exit(thread_current(),-1);
+		call_exit(thread_current(), -1);
 		return -1;
 	}
 	else
 	{
-		read_result = file_read(find_file_by_Fd(fd), buffer, size); // TODO : lock걸어야함
+		read_result = file_read(find_file_by_Fd(fd), buffer, size);
 	}
 	sema_up(&syn_sema);
 
 	return read_result;
 }
 
-int call_wait (tid_t child_tid) {
+int call_wait(tid_t child_tid)
+{
 	return process_wait(child_tid);
 }
 
@@ -248,42 +242,38 @@ int call_filesize(int fd)
 	return file_length(file);
 }
 
-int call_fork (const char *thread_name){
+int call_fork(const char *thread_name)
+{
 	check_addr(thread_name);
-	
-	int tmp = process_fork (thread_name, &thread_current()->ptf);
-	if(tmp == TID_ERROR){
-		call_exit(thread_current(), TID_ERROR);
-	}
 
-	return tmp;
+	return process_fork(thread_name, &thread_current()->ptf);
+	;
 }
 
-int call_exec (const char *file){
+int call_exec(const char *file)
+{
 	char *file_copy;
 	check_addr(file);
-	// int a = 0;
 
+	file_copy = palloc_get_page(PAL_ZERO);
 
-	file_copy = palloc_get_page(0);
-	// file_copy = file
-	if(!file_copy){
+	if (!file_copy)
+	{
 		call_exit(thread_current(), -1);
 		return -1;
 	}
 
-	strlcpy(file_copy, file, strlen(file)+1);
-	if(process_exec(file_copy) == -1){
-		
+	strlcpy(file_copy, file, strlen(file) + 1);
+	if (process_exec(file_copy) == -1)
+	{
+
 		call_exit(thread_current(), -1);
 		return -1;
 	}
-	
 }
 
-
-//--------------
-bool call_remove(const char *file){
+bool call_remove(const char *file)
+{
 
 	check_addr(file);
 	sema_down(&syn_sema);
@@ -292,44 +282,37 @@ bool call_remove(const char *file){
 	return return_ans;
 }
 
-void call_seek(int fd, unsigned new_pos){
+void call_seek(int fd, unsigned new_pos)
+{
 	struct file *cur = thread_current()->fd_table[fd];
-	
-	if(cur != NULL){
+
+	if (cur != NULL)
+	{
 		file_seek(cur, new_pos);
 	}
 }
 
-unsigned call_tell(int fd){
+unsigned call_tell(int fd)
+{
 	struct file *cur = thread_current()->fd_table[fd];
-	
-	if(cur != NULL){
+
+	if (cur != NULL)
+	{
 		return file_tell(cur);
 	}
 }
-//----------
-
-// fd값을 return, 실패시 -1을 return
-// void exit(int status)
-// {
-// 	struct thread *curr = thread_current();
-// 	curr->exit_status = status;
-// 	curr->tf.R.rax = status;
-// 	thread_exit();
-// }
 
 int add_file_to_fdt(struct file *file)
 {
 	struct thread *cur = thread_current();
 	struct file **fdt = cur->fd_table;
-	// fd의 위치가 제한 범위를 넘지않고, fdtable의 인덱스 위치와 일치하면 fd index += 1
-	while (cur->fd_idx < FDCOUNT_LIMIT && fdt[cur->fd_idx])
+
+	while (cur->fd_idx < 128 && fdt[cur->fd_idx])
 	{
 		cur->fd_idx++;
 	}
 
-	// fdt가 가득 찼다면 -1 return
-	if (cur->fd_idx >= FDCOUNT_LIMIT)
+	if (cur->fd_idx >= 128)
 	{
 		return -1;
 	}
@@ -342,7 +325,7 @@ struct file *find_file_by_Fd(int fd)
 {
 	struct thread *cur = thread_current();
 
-	if (fd < 0 || fd >= FDCOUNT_LIMIT)
+	if (fd < 0 || fd >= 128)
 	{
 		return NULL;
 	}
@@ -354,8 +337,7 @@ void check_addr(const uint64_t *addr)
 	struct thread *curr = thread_current();
 	if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(curr->pml4, addr) == NULL)
 	{
-		//exit(-1);
+		// exit(-1);
 		call_exit(curr, -1);
 	}
 }
-

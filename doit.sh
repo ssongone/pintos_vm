@@ -1,4 +1,4 @@
-cd threads
+cd userprog
 make clean
 make
 cd build
@@ -6,7 +6,7 @@ source ../../activate
 # pintos --gdb -- run priority-donate-chain
 # pintos -- run priority-donate-chain
 
-pintos -- run priority-condvar
+# pintos -- run priority-condvar
 # pintos --gdb --fs-disk=10 -p tests/userprog/args-single:args-single -- -q -f run 'args-single onearg'
 # pintos --fs-disk=10 -p tests/userprog/open-missing:open-missing -- -q   -f run open-missing
 
@@ -36,6 +36,6 @@ pintos -- run priority-condvar
 # pintos --fs-disk=10 -p tests/userprog/create-empty:create-empty -- -q   -f run create-empty 
 
 # pintos  --fs-disk=10 -p tests/userprog/bad-read:bad-read -- -q   -f run bad-read 
-pintos --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q   -f run multi-oom 
+pintos -v -k -T 600 -m 20 --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q  -f run multi-oom
 
 # pintos -v -k -T 300 -m 20   --fs-disk=10 -p tests/filesys/base/syn-read:syn-read -p tests/filesys/base/child-syn-read:child-syn-read -- -q   -f run syn-read
