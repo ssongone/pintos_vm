@@ -250,9 +250,9 @@ process_exec (void *f_name) {
 	process_cleanup ();
 	/* And then load the binary */
 	// printf("몇번\n");
-	sema_down(&exec_sema);
+	
 	success = load (file_name, &_if);
-	sema_up(&exec_sema);
+	
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
@@ -472,9 +472,9 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 	
 	/* Open executable file. */	
-
+	sema_down(&exec_sema);
 	file = filesys_open (file_name);
-
+	sema_up(&exec_sema);
 	bool hello = true;
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
