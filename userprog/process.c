@@ -58,7 +58,7 @@ process_create_initd (const char *file_name) {
 	char *save_ptr;
 	strtok_r(file_name, " ", &save_ptr);
 
-	sema_init(&exec_sema, 1);
+	// sema_init(&exec_sema, 1);
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
@@ -318,6 +318,7 @@ void
 process_exit (void) {
 	struct thread *curr = thread_current ();
 	struct file **table = curr->fd_table;
+
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
@@ -326,6 +327,7 @@ process_exit (void) {
 	if(curr->file_cur){
 		file_close(curr->file_cur);
 	}
+
 	// if (curr->is_user_prog) {
 	// 	printf("%s: exit(%d)\n", curr->name, curr->tf.R.rax);
 	// }
@@ -472,9 +474,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 	
 	/* Open executable file. */	
-	sema_down(&exec_sema);
+	// sema_down(&exec_sema);
 	file = filesys_open (file_name);
-	sema_up(&exec_sema);
 	bool hello = true;
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
@@ -591,6 +592,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 done:
 	/* We arrive here whether the load is successful or not. */
+	// sema_up(&exec_sema);
+
 	return success;
 }
 

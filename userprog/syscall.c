@@ -12,6 +12,8 @@
 #include "threads/palloc.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "threads/synch.h"
+
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -29,8 +31,11 @@ void syscall_handler(struct intr_frame *);
 #define MSR_LSTAR 0xc0000082		/* Long mode SYSCALL target */
 #define MSR_SYSCALL_MASK 0xc0000084 /* Mask for the eflags */
 
+struct semaphore syn_sema;
+
 void syscall_init(void)
 {
+	sema_init(&syn_sema, 1);
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48 |
 							((uint64_t)SEL_KCSEG) << 32);
 	write_msr(MSR_LSTAR, (uint64_t)syscall_entry);
@@ -119,13 +124,16 @@ void call_exit(struct thread *curr, uint64_t status)
 int call_write(int fd, const void *buffer, unsigned size)
 {
 	check_addr(buffer);
-	
+	sema_down(&syn_sema);
+
 	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
 	{
 		putbuf(buffer, size);
+		sema_up(&syn_sema);
 		return size;
 	}
 	if(fd == 0){
+		sema_up(&syn_sema);
 		return -1;
 	}
 	struct file *file = find_file_by_Fd(fd);
@@ -134,9 +142,10 @@ int call_write(int fd, const void *buffer, unsigned size)
 	}
 	
 	if (file->deny_write) {	
+		sema_up(&syn_sema);
 		return 0;
 	}
-
+	sema_up(&syn_sema);
 	return file_write(file, buffer, size);
 }
 bool call_create(const char *file, unsigned initial_size)
@@ -152,13 +161,14 @@ void call_halt(void)
 
 int call_open(const char *file)
 {
-	
-
 	check_addr(file);
+	sema_down(&syn_sema);
+
 	struct file *open_file = filesys_open(file);
 
 	if (open_file == NULL)
 	{
+		sema_up(&syn_sema);
 		return -1;
 	}
 
@@ -169,6 +179,8 @@ int call_open(const char *file)
 	{
 		file_close(open_file);
 	}
+	sema_up(&syn_sema);
+
 	return fd;
 }
 
@@ -177,13 +189,13 @@ void call_close(int fd)
 
 	struct thread *cur = thread_current();
 	struct file *file = find_file_by_Fd(fd);
-
 	if (file == NULL)
 	{
 		// call_exit(thread_current(),-1);
 		return;
 	}
 	cur->fd_table[fd] = NULL;
+	
 	file_close(file);
 }
 
@@ -199,6 +211,7 @@ int call_read(int fd, void *buffer, unsigned size)
 		return byte;
 	}
 
+	sema_down(&syn_sema);
 
 	struct file *file = find_file_by_Fd(fd);
 	int read_result;
@@ -206,6 +219,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	
 	if (file == NULL)
 	{
+		sema_up(&syn_sema);
 		call_exit(thread_current(),-1);
 		return -1;
 	}
@@ -213,6 +227,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	{
 		read_result = file_read(find_file_by_Fd(fd), buffer, size); // TODO : lock걸어야함
 	}
+	sema_up(&syn_sema);
 
 	return read_result;
 }
