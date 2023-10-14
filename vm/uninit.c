@@ -10,6 +10,7 @@
 
 #include "vm/vm.h"
 #include "vm/uninit.h"
+#include "userprog/process.h"
 
 static bool uninit_initialize (struct page *page, void *kva);
 static void uninit_destroy (struct page *page);
@@ -28,7 +29,7 @@ uninit_new (struct page *page, void *va, vm_initializer *init,
 		enum vm_type type, void *aux,
 		bool (*initializer)(struct page *, enum vm_type, void *)) {
 	ASSERT (page != NULL);
-
+	
 	*page = (struct page) {
 		.operations = &uninit_ops,
 		.va = va,
@@ -55,6 +56,7 @@ uninit_initialize (struct page *page, void *kva) {
 	return uninit->page_initializer (page, uninit->type, kva) &&
 		(init ? init (page, aux) : true);
 }
+
 
 /* Free the resources hold by uninit_page. Although most of pages are transmuted
  * to other page objects, it is possible to have uninit pages when the process
