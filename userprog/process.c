@@ -20,9 +20,19 @@
 #include "threads/synch.h"
 #include "intrinsic.h"
 #include "userprog/syscall.h"
+#define VM 1
 #ifdef VM
 #include "vm/vm.h"
 #endif
+
+struct page_info{
+	struct file *file;
+	off_t ofs;
+	uint8_t *upage;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+	bool writable;
+};
 
 static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
@@ -248,8 +258,9 @@ int process_exec(void *f_name)
 
 	/* If load failed, quit. */
 	palloc_free_page(file_name);
-	if (!success)
+	if (!success) {
 		return -1;
+	}
 
 	/* Start switched process. */
 	do_iret(&_if);
@@ -447,7 +458,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool
-load(const char *file_name, struct intr_frame *if_)
+load(const char *file_name, struct intr_frame *if_) //1 또는 true를 뱉어야해..!!
 {
 	struct thread *t = thread_current();
 	struct ELF ehdr;
@@ -649,9 +660,10 @@ validate_segment(const struct Phdr *phdr, struct file *file)
 /* Codes of this block will be ONLY USED DURING project 2.
  * If you want to implement the function for whole project 2, implement it
  * outside of #ifndef macro. */
+static bool install_page(void *upage, void *kpage, bool writable);
 
 /* load() helpers. */
-static bool install_page(void *upage, void *kpage, bool writable);
+// static bool install_page(void *upage, void *kpage, bool writable);
 
 /* Loads a segment starting at offset OFS in FILE at address
  * UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
@@ -761,6 +773,26 @@ lazy_load_segment(struct page *page, void *aux)
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+
+	struct page_info *page_info = (struct page_info *) aux;
+	struct file *file = page_info->file;
+	off_t ofs = page_info->ofs;
+	uint8_t *upage = page_info->upage;
+	uint32_t read_bytes = page_info->read_bytes;
+	uint32_t zero_bytes = page_info->zero_bytes;
+	bool writable = page_info->writable;
+
+	file_seek(file, ofs);
+	if (page == NULL)
+		return false;
+
+	/* Load this page. */
+	if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes)
+	{
+		vm_dealloc_page(page);
+		return false;
+	}
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -785,6 +817,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT(pg_ofs(upage) == 0);
 	ASSERT(ofs % PGSIZE == 0);
 
+
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
 		/* Do calculate how to fill this page.
@@ -794,15 +827,24 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		struct page_info *page_info = (struct page_info *)malloc(sizeof(struct page_info));
+		page_info->file = file;
+		page_info->ofs = ofs;
+		page_info->upage = upage;
+		page_info->read_bytes = read_bytes;
+		page_info->zero_bytes = zero_bytes;
+		page_info->writable = writable;
+		// void *aux = page_info;
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,
-											writable, lazy_load_segment, aux))
+											writable, lazy_load_segment, page_info))
 			return false;
 
 		/* Advance. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+		
+		ofs += page_read_bytes;
 	}
 	return true;
 }
@@ -818,7 +860,14 @@ setup_stack(struct intr_frame *if_)
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
-
+	if (vm_alloc_page(VM_ANON, stack_bottom, true))
+	{
+		if (vm_claim_page(stack_bottom)) {
+            if_->rsp = USER_STACK;
+            success = true;
+		}
+	}
 	return success;
 }
 #endif /* VM */
+

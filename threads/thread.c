@@ -11,6 +11,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "hash.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -460,6 +462,16 @@ init_thread(struct thread *t, const char *name, int priority)
 	list_init(&t->donations);
 	list_init(&t->child_list);
 
+
+	// 송원: 왜 여기서 malloc을 하면 assertion `is_thread (t)' failed. 오류가 날까???? 일단 spt_init()에서 하는즁
+	
+	// t->spt.hash_table = (struct hash *) malloc(sizeof(struct hash));
+	// if (t->spt.hash_table == NULL)
+	// 	return TID_ERROR;
+
+	// t->spt.hash_table = (struct hash *) calloc(1, sizeof(struct hash));
+	// if (t->spt.hash_table == NULL)
+	// 	return TID_ERROR;
 	t->magic = THREAD_MAGIC;
 }
 
