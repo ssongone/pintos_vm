@@ -62,8 +62,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
         struct page *page = (struct page *)malloc(sizeof(struct page));
         if (!page)
             return false;
-        /* TODO: and then create "uninit" page struct by calling uninit_new. */
-
+        
+		/* TODO: and then create "uninit" page struct by calling uninit_new. */
 
 		if (type == VM_ANON) {
 			uninit_new(page, upage, init, type, aux, anon_initializer);
@@ -72,6 +72,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		}
 
 		page->writable = writable;
+
 		/* TODO: Insert the page into the spt. */
 		if(!spt_insert_page(spt, page)) {
 			goto err;
@@ -134,10 +135,6 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 
 
-/*
- 송원 : va를 키로 해시함수를 하기 때문에 NULL 페이지에 va 넣어주고 hash_find() 하는 걸까?
-	   va 주소에 해당하는 가상 페이지를 리턴해줘 얘 한테 정보 추가해줄거야
-*/
 struct page * spt_find_page (struct supplemental_page_table *spt, void *va) {
 	/* TODO: supplemental_page_table에서 인자로 주어진 va에 해당되는 page를 찾아서 리턴하기 */
 
