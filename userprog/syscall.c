@@ -335,7 +335,11 @@ struct file *find_file_by_Fd(int fd)
 void check_addr(const uint64_t *addr)
 {
 	struct thread *curr = thread_current();
-	if (addr == NULL || !(is_user_vaddr(addr)) || pml4_get_page(curr->pml4, addr) == NULL)
+
+	// pml4_get_page는 실제 적재되어 있어야 NULL반환 안해줌.. 하지만 pml4e_walk는 실제 적재되어 있지 않고 매핑만 되어있어도 되서 pml4e walk를 쓴다
+	// 유저 어드레스는 왜 체크안해도 되징? 커널 영역도 가능한것인가?.? pml4_get_page를 하려면 유저 어드레스 여야해 assertion 걸려서.. 근데 이제는 커널영역에 있는 것도
+	// 막 가져오나??
+	if (addr == NULL || pml4e_walk(curr->pml4, addr, false) == NULL)
 	{
 		// exit(-1);
 		call_exit(curr, -1);

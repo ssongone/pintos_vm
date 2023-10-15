@@ -20,7 +20,6 @@
 #include "threads/synch.h"
 #include "intrinsic.h"
 #include "userprog/syscall.h"
-#define VM 1
 #ifdef VM
 #include "vm/vm.h"
 #endif

@@ -256,6 +256,9 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 
 	page = spt_find_page(spt, addr);
 
+	if(page == NULL) {
+		return false;
+	}
 	return vm_do_claim_page(page);
 }
 
@@ -311,8 +314,8 @@ supplemental_page_table_init (struct supplemental_page_table *spt) {
 
 /* Copy supplemental page table from src to dst */
 bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
+supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {
+	//hash_apply 공부해보거라 iterate
 }
 
 /* Free the resource hold by the supplemental page table */
