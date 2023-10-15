@@ -262,7 +262,8 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 
 	page = spt_find_page(spt, addr);
 
-	if(page == NULL) {
+	if (page == NULL)
+	{
 		return false;
 	}
 	return vm_do_claim_page(page);
@@ -321,16 +322,45 @@ void supplemental_page_table_init(struct supplemental_page_table *spt)
 }
 
 /* Copy supplemental page table from src to dst */
-bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, struct supplemental_page_table *src UNUSED) {
-	//hash_apply 공부해보거라 iterate
+bool supplemental_page_table_copy(struct supplemental_page_table *dst, struct supplemental_page_table *src)
+{
+	// hash_apply 공부해보거라 iterate
+	// memcpy(dst, src, sizeof(struct supplemental_page_table));
+	// hash_apply(&src->hash_table, page_hash_copy);
+
+	// 	size_t elem_cnt;            /* Number of elements in table. */
+	// size_t bucket_cnt;          /* Number of buckets, a power of 2. */
+	// struct list *buckets;       /* Array of `bucket_cnt' lists. */
+	// hash_hash_func *hash;       /* Hash function. */
+	// hash_less_func *less;       /* Comparison function. */
+	// void *aux;                  /* Auxiliary data for `hash' and `less'. */
+
+	// 여기서 thread_current는 dst
+
+	struct hash *src_hash = &src->hash_table;
+	struct hash *dst_hash = &dst->hash_table;
+
+	dst_hash->elem_cnt = src_hash->elem_cnt;
+	dst_hash->bucket_cnt = src_hash->bucket_cnt;
+	dst_hash->aux = src_hash->aux;
+
+	struct hash_iterator i;
+	hash_first(&i, &src->hash_table);
+	while (hash_next(&i))
+	{
+		struct page *src_p = hash_entry(hash_cur(&i), struct page, spt_elem);
+		vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
+	}
+
+	hash_apply(src_hash, page_hash_copy);
 }
 
 /* Free the resource hold by the supplemental page table */
-void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
+void supplemental_page_table_kill(struct supplemental_page_table *spt)
 {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+	hash_destroy(spt, page_hash_destructor);
 }
 
 /* Returns a hash value for page p. */
@@ -362,4 +392,16 @@ bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void 
 	struct frame *frame_a = hash_entry(a, struct frame, hash_elem);
 	struct frame *frame_b = hash_entry(b, struct frame, hash_elem);
 	return frame_a->kva < frame_b->kva;
+}
+
+void page_hash_destructor(struct hash_elem *e, void *aux)
+{
+	struct page *p = hash_entry(e, struct page, spt_elem);
+	free(p);
+}
+
+void page_hash_copy(struct hash_elem *src_elem, void *aux)
+{
+	struct page *src_p = hash_entry(src_elem, struct page, spt_elem);
+	vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
 }

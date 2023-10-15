@@ -49,6 +49,8 @@ struct page {
 	/* Your implementation */
 	struct hash_elem spt_elem;
 	bool writable;
+	enum vm_type vm_type;
+
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
 	union {
@@ -118,6 +120,8 @@ enum vm_type page_get_type (struct page *page);
 /* helper functions for page hash */
 unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
 bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
+void page_hash_destructor(struct hash_elem *e, void *aux);
+void page_hash_copy(struct hash_elem *src_elem, void *aux);
 
 /* helper functions for frame hash */
 uint64_t frame_hash(const struct hash_elem *e, void *aux);

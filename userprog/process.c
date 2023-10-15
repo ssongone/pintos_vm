@@ -20,6 +20,9 @@
 #include "threads/synch.h"
 #include "intrinsic.h"
 #include "userprog/syscall.h"
+
+#define VM
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -251,8 +254,9 @@ int process_exec(void *f_name)
 
 	/* We first kill the current context */
 	process_cleanup();
-	/* And then load the binary */
+	supplemental_page_table_init(&thread_current()->spt);
 
+	/* And then load the binary */
 	success = load(file_name, &_if);
 
 	/* If load failed, quit. */
