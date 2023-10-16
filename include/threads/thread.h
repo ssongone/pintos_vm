@@ -121,7 +121,6 @@ struct thread
 	struct list child_list;
 	struct list_elem child_elem;
 	int exit_status;
-
 	struct thread *parent_t;
 
 #ifdef USERPROG
@@ -131,14 +130,16 @@ struct thread
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
+	// void* rsp_stack;
+	void* stack_bottom;
 #endif
 
 	/* Owned by thread.c. */
 	struct intr_frame tf; /* Information for switching */
 	struct intr_frame ptf;
+
 	unsigned magic; /* Detects stack overflow. */
 };
-
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

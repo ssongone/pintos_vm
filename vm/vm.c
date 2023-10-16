@@ -179,9 +179,20 @@ vm_get_frame(void)
 }
 
 /* Growing the stack. */
+
 static void
-vm_stack_growth(void *addr UNUSED)
+vm_stack_growth(void *addr)
 {
+	// printf("stack_growth()\n");
+	void * before_buttom = thread_current()->stack_bottom;
+	thread_current()->stack_bottom -= PGSIZE;
+	// printf("stack_bottom 작아졌니? %d\n", thread_current()->stack_bottom);
+	// void *before_buttom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
+	thread_current()->tf.rsp = before_buttom;
+
+	// printf("zzz\n");
+	vm_alloc_page(VM_ANON, thread_current()->stack_bottom, true);
+	// printf("xxx\n");
 }
 
 /* Handle the fault on write_protected page */
@@ -189,6 +200,11 @@ static bool
 vm_handle_wp(struct page *page UNUSED)
 {
 }
+
+
+/*
+* user : true - 유저모드, false - 커널모드
+* not-present : 해당 인자가 false인 경우는 read-only 페이지에 write를 하려는 상황을 나타냄. 주어진 테스트 케이스에서는 mmap-ro 케이스가 해당 인자를 체크함
 
 /* Return true on success */
 bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write, bool not_present)
@@ -199,8 +215,36 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
 	struct page *page = NULL;
+
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
+
+	// 구현에 도움을 드리자면 우선 인자로 들어오면 addr의 유효성을 검증하고,뒤이어 현재 쓰레드의 rsp_stack를 받아오거나 인터럽트 프레임의 rsp를 받아와 현재 쓰레드의 rsp 주소를 설정합니다.
+	if (addr == NULL || is_kernel_vaddr(addr)) {
+		return false;
+	}
+
+	
+	// 스택을 다썻는지 안썻는지.. 
+	// addr이랑 f->rsp랑 비교?? spt에는 들어있지 않은 addr.....
+	// 코드영역은 spt에 들어와있으니까... 
+	// round_up은??
+	// stack growth 해야하는 경우: 그 페이지에 해당하는 spt가 없어고, 스택이 꽉차있음(= rsp가 더 작아졌어 지금 가리키는 주소보다)
+	// 스택
+	if (spt_find_page(spt, addr) == NULL && thread_current()->stack_bottom > addr) {
+		// printf("stack_bottom 은: %p\n ", thread_current()->stack_bottom);
+		// printf("addr은: %p\n ", addr);
+		vm_stack_growth(addr);
+	}
+
+	page = spt_find_page(spt, addr);
+
+	if (page == NULL)
+	{
+		return false;
+	}
+
+
 
 	/*TODO -
 		Check if the memory reference is valid.
@@ -219,13 +263,6 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 		the kernel looks up the virtual page that faulted in the supplemental page table
 		to find out what data should be there.
 	*/
-
-	page = spt_find_page(spt, addr);
-
-	if (page == NULL)
-	{
-		return false;
-	}
 	return vm_do_claim_page(page);
 }
 
