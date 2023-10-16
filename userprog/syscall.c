@@ -205,10 +205,18 @@ int call_read(int fd, void *buffer, unsigned size)
 		return byte;
 	}
 
+
+	struct page * buf_page = spt_find_page(&thread_current()->spt, buffer);
+	if (buf_page != NULL && !buf_page->writable) {
+		call_exit(thread_current(), -1);
+	}
+
 	sema_down(&syn_sema);
+
 
 	struct file *file = find_file_by_Fd(fd);
 	int read_result;
+
 
 	if (file == NULL)
 	{
@@ -222,6 +230,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	}
 	sema_up(&syn_sema);
 
+	
 	return read_result;
 }
 
