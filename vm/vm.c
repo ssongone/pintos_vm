@@ -337,16 +337,16 @@ void page_hash_copy(struct hash_elem *src_elem, void *aux)
 {
 	struct page *src_p = hash_entry(src_elem, struct page, spt_elem);
 
-	// if (src_p->operations->type == VM_UNINIT)
-	// {
-	// 	vm_alloc_page_with_initializer(VM_ANON, src_p->va, src_p->writable, src_p->uninit.init, src_p->uninit.aux);
-	// }
-	// else
-	// {
+	if (src_p->operations->type == VM_UNINIT)
+	{
+		vm_alloc_page_with_initializer(VM_ANON, src_p->va, src_p->writable, src_p->uninit.init, src_p->uninit.aux);
+	}
+	else
+	{
 		vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
 		vm_claim_page(src_p->va);
 		struct page *child_page = spt_find_page(&thread_current()->spt, src_p->va);
-		// if (src_p->frame != NULL)
+		if (src_p->frame != NULL)
 			memcpy(child_page->frame->kva, src_p->frame->kva, PGSIZE);
-	// }
+	}
 }
