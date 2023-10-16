@@ -148,3 +148,6 @@ source ../../activate
 
 # $FORK_ONCE
 # $PT_GROW_STK
+$PT_GROW_BAD
+# $PT_WRITE_CODE
+# $PT_WRITE_CODE2
