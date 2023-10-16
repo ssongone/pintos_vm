@@ -27,14 +27,6 @@
 #include "vm/vm.h"
 #endif
 
-struct page_info{
-	struct file *file;
-	off_t ofs;
-	uint8_t *upage;
-	uint32_t read_bytes;
-	uint32_t zero_bytes;
-	bool writable;
-};
 
 static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);

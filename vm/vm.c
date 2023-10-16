@@ -90,46 +90,6 @@ err:
 	return false;
 }
 
-// typedef bool (*page_initializer) (struct page *, enum vm_type, void *kva);
-// /* Create the pending page object with initializer. If you want to create a
-// * page, do not create it directly and make it through this function or
-// * `vm_alloc_page`.
-// * 인자로 전달한 vm_type에 맞는 적절한 초기화 함수를 가져와야 하고,
-// * 이 함수를 인자로 갖는 uninit_new() 함수를 호출해야 한다. */
-// bool
-// vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
-//         vm_initializer *init, void *aux) {
-//     ASSERT (VM_TYPE(type) != VM_UNINIT)
-//     struct supplemental_page_table *spt = &thread_current ()->spt;
-//     /* Check wheter the upage is already occupied or not. */
-//     if (spt_find_page (spt, upage) == NULL) {
-//         /* TODO: Create the page, fetch the initialier according to the VM type, */
-//         struct page *page = (struct page *)malloc(sizeof(struct page));
-//         if (!page)
-//             return false;
-//         /* TODO: and then create "uninit" page struct by calling uninit_new. */
-//         page_initializer *new_initializer = NULL;
-//         switch (type) {
-//             case VM_ANON:
-//                 new_initializer = anon_initializer;
-//                 break;
-//             case VM_FILE:
-//                 new_initializer = file_backed_initializer;
-//                 break;
-//             default:
-//                 free(page);
-//                 return false;
-//         }
-//         /* TODO: You should modify the field after calling the uninit_new. */
-//         uninit_new(page, upage, init, type, aux, new_initializer);
-//         page->writable = writable;
-//         /* TODO: Insert the page into the spt. */
-//         spt_insert_page(spt, page);
-//         return true;
-//     }
-// err:
-//     return false;
-// }
 
 /* Find VA from spt and return page. On error, return NULL. */
 
@@ -324,35 +284,8 @@ void supplemental_page_table_init(struct supplemental_page_table *spt)
 /* Copy supplemental page table from src to dst */
 bool supplemental_page_table_copy(struct supplemental_page_table *dst, struct supplemental_page_table *src)
 {
-	// hash_apply 공부해보거라 iterate
-	// memcpy(dst, src, sizeof(struct supplemental_page_table));
-	// hash_apply(&src->hash_table, page_hash_copy);
-
-	// 	size_t elem_cnt;            /* Number of elements in table. */
-	// size_t bucket_cnt;          /* Number of buckets, a power of 2. */
-	// struct list *buckets;       /* Array of `bucket_cnt' lists. */
-	// hash_hash_func *hash;       /* Hash function. */
-	// hash_less_func *less;       /* Comparison function. */
-	// void *aux;                  /* Auxiliary data for `hash' and `less'. */
-
-	// 여기서 thread_current는 dst
-
-	struct hash *src_hash = &src->hash_table;
-	struct hash *dst_hash = &dst->hash_table;
-
-	dst_hash->elem_cnt = src_hash->elem_cnt;
-	dst_hash->bucket_cnt = src_hash->bucket_cnt;
-	dst_hash->aux = src_hash->aux;
-
-	struct hash_iterator i;
-	hash_first(&i, &src->hash_table);
-	while (hash_next(&i))
-	{
-		struct page *src_p = hash_entry(hash_cur(&i), struct page, spt_elem);
-		vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
-	}
-
-	hash_apply(src_hash, page_hash_copy);
+	hash_apply(&src->hash_table, page_hash_copy);
+	return true;
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -403,5 +336,17 @@ void page_hash_destructor(struct hash_elem *e, void *aux)
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
 {
 	struct page *src_p = hash_entry(src_elem, struct page, spt_elem);
-	vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
+
+	// if (src_p->operations->type == VM_UNINIT)
+	// {
+	// 	vm_alloc_page_with_initializer(VM_ANON, src_p->va, src_p->writable, src_p->uninit.init, src_p->uninit.aux);
+	// }
+	// else
+	// {
+		vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
+		vm_claim_page(src_p->va);
+		struct page *child_page = spt_find_page(&thread_current()->spt, src_p->va);
+		// if (src_p->frame != NULL)
+			memcpy(child_page->frame->kva, src_p->frame->kva, PGSIZE);
+	// }
 }
