@@ -26,6 +26,7 @@ int call_exec (const char *file);
 bool call_remove(const char *file);
 void call_seek(int fd, unsigned new_pos);
 unsigned call_tell(int fd);
+void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset);
 
 
 

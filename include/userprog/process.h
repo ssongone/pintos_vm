@@ -11,7 +11,7 @@ void process_exit (void);
 void process_activate (struct thread *next);
 
 struct thread *get_child_with_pid(int pid);
-
+bool lazy_load_segment(struct page *page, void *aux);
 
 struct page_info{
 	struct file *file;

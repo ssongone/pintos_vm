@@ -97,7 +97,14 @@ void syscall_handler(struct intr_frame *f)
 	case SYS_TELL:
 		f->R.rax = call_tell(f->R.rdi);
 		break;
-
+	case SYS_MMAP:
+		// 파일이 매핑된 가상 주소를 반환. mmap에 실패할 경우 NULL을 반환
+		// TODO: rcx로 들어가야 할 값이 왜 r10으로 들어가고 있는지 확인 필요
+		f->R.rax = call_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		break;
+	case SYS_MUNMAP:
+		do_munmap(f->R.rdi);
+		break;
 	default:
 		call_exit(curr, -1);
 		break;
@@ -205,18 +212,16 @@ int call_read(int fd, void *buffer, unsigned size)
 		return byte;
 	}
 
-
-	struct page * buf_page = spt_find_page(&thread_current()->spt, buffer);
-	if (buf_page != NULL && !buf_page->writable) {
+	struct page *buf_page = spt_find_page(&thread_current()->spt, buffer);
+	if (buf_page != NULL && !buf_page->writable)
+	{
 		call_exit(thread_current(), -1);
 	}
 
 	sema_down(&syn_sema);
 
-
 	struct file *file = find_file_by_Fd(fd);
 	int read_result;
-
 
 	if (file == NULL)
 	{
@@ -230,7 +235,6 @@ int call_read(int fd, void *buffer, unsigned size)
 	}
 	sema_up(&syn_sema);
 
-	
 	return read_result;
 }
 
@@ -309,6 +313,15 @@ unsigned call_tell(int fd)
 	{
 		return file_tell(cur);
 	}
+}
+
+void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+{
+	struct file *file = find_file_by_Fd(fd);
+	if (file == NULL){
+		return NULL;
+	}
+	return do_mmap(addr, length, writable, file, offset);
 }
 
 int add_file_to_fdt(struct file *file)

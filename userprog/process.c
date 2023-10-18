@@ -27,7 +27,6 @@
 #include "vm/vm.h"
 #endif
 
-
 static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
@@ -253,7 +252,8 @@ int process_exec(void *f_name)
 
 	/* If load failed, quit. */
 	palloc_free_page(file_name);
-	if (!success) {
+	if (!success)
+	{
 		return -1;
 	}
 
@@ -453,7 +453,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
 static bool
-load(const char *file_name, struct intr_frame *if_) //1 또는 true를 뱉어야해..!!
+load(const char *file_name, struct intr_frame *if_) // 1 또는 true를 뱉어야해..!!
 {
 	struct thread *t = thread_current();
 	struct ELF ehdr;
@@ -762,14 +762,12 @@ install_page(void *upage, void *kpage, bool writable)
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
-static bool
-lazy_load_segment(struct page *page, void *aux)
+bool lazy_load_segment(struct page *page, void *aux)
 {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
-
-	struct page_info *page_info = (struct page_info *) aux;
+	struct page_info *page_info = (struct page_info *)aux;
 	struct file *file = page_info->file;
 	off_t ofs = page_info->ofs;
 	uint8_t *upage = page_info->upage;
@@ -779,10 +777,14 @@ lazy_load_segment(struct page *page, void *aux)
 
 	file_seek(file, ofs);
 	if (page == NULL)
+	{
+
 		return false;
+	}
 
 	/* Load this page. */
-	if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes)
+	int result = file_read(file, page->frame->kva, read_bytes);
+	if (result != (int)read_bytes)
 	{
 		vm_dealloc_page(page);
 		return false;
@@ -812,7 +814,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT(pg_ofs(upage) == 0);
 	ASSERT(ofs % PGSIZE == 0);
 
-
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
 		/* Do calculate how to fill this page.
@@ -838,7 +839,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
-		
+
 		ofs += page_read_bytes;
 	}
 	return true;
@@ -857,12 +858,12 @@ setup_stack(struct intr_frame *if_)
 	/* TODO: Your code goes here */
 	if (vm_alloc_page(VM_ANON, stack_bottom, true))
 	{
-		if (vm_claim_page(stack_bottom)) {
-            if_->rsp = USER_STACK;
-            success = true;
+		if (vm_claim_page(stack_bottom))
+		{
+			if_->rsp = USER_STACK;
+			success = true;
 		}
 	}
 	return success;
 }
 #endif /* VM */
-

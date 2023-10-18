@@ -253,7 +253,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 	// round_up은??
 	// stack growth 해야하는 경우: 그 페이지에 해당하는 spt가 없어고, 스택이 꽉차있음(= rsp가 더 작아졌어 지금 가리키는 주소보다)
 	// 스택
-	
+
 	if (spt_find_page(spt, addr) == NULL && curr->stack_bottom > addr) {
 		
 	
