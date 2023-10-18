@@ -146,4 +146,4 @@ make
 cd build
 source ../../activate
 
-$WRITE_NORMAL
+$MMAP_WRITE

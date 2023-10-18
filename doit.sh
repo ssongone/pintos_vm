@@ -146,4 +146,5 @@ make
 cd build
 source ../../activate
 
-$MMAP_READ
+# $MMAP_CLOSE
+$MMAP_WRITE

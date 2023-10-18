@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 
+#define USERPROG
 #define VM
 
 #ifdef VM

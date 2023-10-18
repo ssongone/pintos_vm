@@ -777,18 +777,22 @@ bool lazy_load_segment(struct page *page, void *aux)
 
 	file_seek(file, ofs);
 	if (page == NULL)
-	{
-
 		return false;
-	}
 
 	/* Load this page. */
-	int result = file_read(file, page->frame->kva, read_bytes);
-	if (result != (int)read_bytes)
+	if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes)
 	{
 		vm_dealloc_page(page);
 		return false;
 	}
+
+	if (page->operations->type == VM_FILE)
+	{
+		page->file.file = file;
+		page->file.file_length = file_length(file);
+		page->file.offset = ofs;
+	}
+
 	return true;
 }
 

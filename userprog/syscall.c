@@ -103,7 +103,7 @@ void syscall_handler(struct intr_frame *f)
 		f->R.rax = call_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 		break;
 	case SYS_MUNMAP:
-		do_munmap(f->R.rdi);
+		call_munmap(f->R.rdi);
 		break;
 	default:
 		call_exit(curr, -1);
@@ -322,6 +322,11 @@ void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 		return NULL;
 	}
 	return do_mmap(addr, length, writable, file, offset);
+}
+
+void call_munmap (void *addr)
+{
+	do_munmap(addr);
 }
 
 int add_file_to_fdt(struct file *file)

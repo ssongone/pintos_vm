@@ -13,6 +13,9 @@
 #include "intrinsic.h"
 #include "hash.h"
 
+
+#define VM
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
