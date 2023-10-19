@@ -172,10 +172,8 @@ __do_fork(void *aux)
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *)aux;
 	struct thread *current = thread_current();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if = &parent->ptf;
 	bool succ = true;
-
 	/* 1. Read the cpu context to local stack. */
 	memcpy(&if_, parent_if, sizeof(struct intr_frame));
 	if_.R.rax = 0;
@@ -340,11 +338,11 @@ void process_exit(void)
 		cnt++;
 	}
 
+	process_cleanup();
 	sema_up(&curr->sema_wait);
 	sema_down(&curr->sema_exit);
 
 	palloc_free_page(table);
-	process_cleanup();
 }
 
 /* Free the current process's resources. */
@@ -788,7 +786,7 @@ bool lazy_load_segment(struct page *page, void *aux)
 
 	if (page->operations->type == VM_FILE)
 	{
-		page->file.file = file;
+		page->file.file = file_reopen(file);
 		page->file.file_length = file_length(file);
 		page->file.offset = ofs;
 	}
@@ -828,7 +826,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		struct page_info *page_info = (struct page_info *)malloc(sizeof(struct page_info));
-		page_info->file = file;
+		page_info->file = file_reopen(file);
 		page_info->ofs = ofs;
 		page_info->upage = upage;
 		page_info->read_bytes = read_bytes;

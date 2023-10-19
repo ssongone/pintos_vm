@@ -122,6 +122,7 @@ unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
 bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
 void page_hash_destructor(struct hash_elem *e, void *aux);
 void page_hash_copy(struct hash_elem *src_elem, void *aux);
+void page_hash_munmap(struct hash_elem *elem, void *aux);
 
 /* helper functions for frame hash */
 uint64_t frame_hash(const struct hash_elem *e, void *aux);

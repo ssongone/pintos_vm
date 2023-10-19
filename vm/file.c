@@ -50,7 +50,13 @@ static void
 file_backed_destroy(struct page *page)
 {
 	struct file_page *file_page = &page->file;
-	// free(page);
+
+	if (pml4_is_dirty(thread_current()->pml4, page->va))
+	{
+		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->file_length, file_page->offset);
+	}
+
+	file_close(file_page->file);
 }
 
 /* Do the mmap */
@@ -78,8 +84,8 @@ do_mmap(void *addr, size_t length, int writable,
 	// if the range of pages mapped overlaps any existing set of mapped pages,
 	// including the stack or pages mapped at executable load time
 
-
-	if (file_length(file) == 0 || pg_ofs(addr) != 0 ||  addr == 0 || length == 0) {
+	if (file_length(file) == 0 || pg_ofs(addr) != 0 || addr == 0 || length == 0)
+	{
 		return NULL;
 	}
 
@@ -87,13 +93,13 @@ do_mmap(void *addr, size_t length, int writable,
 	struct supplemental_page_table *spt = &thread_current()->spt;
 	if (spt_find_page(spt, addr) != NULL)
 		return NULL;
-	
-	struct file *reopend_file = file_reopen(file);
-	file_seek(file, offset);
+
+	struct file *reopened_file = file_reopen(file);
+	file_seek(reopened_file, offset);
 
 	upage = addr;
 	ofs = offset;
-	read_bytes = file_length(file);
+	read_bytes = file_length(reopened_file);
 	zero_bytes = (ROUND_UP(read_bytes, PGSIZE) - read_bytes);
 
 	while (read_bytes > 0 || zero_bytes > 0)
@@ -106,7 +112,7 @@ do_mmap(void *addr, size_t length, int writable,
 
 		/* Set up aux to pass information to the lazy_load_segment. */
 		struct page_info *page_info = (struct page_info *)malloc(sizeof(struct page_info));
-		page_info->file = reopend_file;
+		page_info->file = reopened_file;
 		page_info->ofs = ofs;
 		page_info->upage = upage;
 		page_info->read_bytes = read_bytes;
@@ -135,15 +141,18 @@ void do_munmap(void *addr)
 	// 3) TODO: 서로 다른 프로세스가 같은 파일을 바라보는 경우 두 개의 데이터가 꼭 같을 필요는 없다. 물리 페이지에 대한 two mapping을 유지함으로써 가능
 
 	// 메모리 반환, 해제
+	struct page *page;
+	uint16_t pg_cnt, i;
+	if (!pml4_is_dirty(thread_current()->pml4, addr))
+		return;
 
-	// if (pml4_is_dirty(thread_current()->pml4, addr)){}
-	struct page *page = spt_find_page(&thread_current()->spt, addr);
-		
+	page = spt_find_page(&thread_current()->spt, addr);
+
 	if (page != NULL)
 	{
 		struct file_page file_page = page->file;
 
 		// addr에 맵핑된 fd를 알아야 한다. 그리고 사이즈도 알아야 한다.
 		off_t write_bytes = file_write_at(file_page.file, addr, file_page.file_length, file_page.offset);
-	} 
+	}
 }
