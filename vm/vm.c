@@ -5,7 +5,7 @@
 #include "vm/inspect.h"
 #include "threads/vaddr.h"
 
-struct hash frame_table;
+struct list frame_list;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -19,7 +19,7 @@ void vm_init(void)
 	register_inspect_intr();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
-	hash_init(&frame_table, frame_hash, frame_less_func, NULL);
+	list_init(&frame_list);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -169,7 +169,7 @@ vm_get_frame(void)
 
 	/* TODO: Fill this function. */
 
-	hash_insert(&frame_table, &frame->hash_elem);
+	list_push_back(&frame_list, &frame->list_elem);
 
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
@@ -247,7 +247,6 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 	// round_up은??
 	// stack growth 해야하는 경우: 그 페이지에 해당하는 spt가 없어고, 스택이 꽉차있음(= rsp가 더 작아졌어 지금 가리키는 주소보다)
 	// 스택
-
 	if (spt_find_page(spt, addr) == NULL && curr->stack_bottom > addr)
 	{
 
@@ -357,9 +356,9 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt)
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 
-	hash_apply(&spt->hash_table, page_hash_munmap);
+	hash_apply(&spt->hash_table, page_kill);
 
-	hash_destroy(spt, page_hash_destructor);
+	hash_destroy(spt, page_hash_destructor); // page, frame 관련 리소스 해제 / 버킷 리스트 해제
 }
 
 /* Returns a hash value for page p. */
@@ -378,25 +377,14 @@ bool page_less(const struct hash_elem *a_,
 	return a->va < b->va;
 }
 
-/* Calculate where to put the frame into the hash table */
-uint64_t frame_hash(const struct hash_elem *e, void *aux)
-{
-	struct frame *p = hash_entry(e, struct frame, hash_elem);
-	return hash_int(p->kva);
-}
-
-/* Compare address values of two entered hash_elem */
-bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux)
-{
-	struct frame *frame_a = hash_entry(a, struct frame, hash_elem);
-	struct frame *frame_b = hash_entry(b, struct frame, hash_elem);
-	return frame_a->kva < frame_b->kva;
-}
-
 void page_hash_destructor(struct hash_elem *e, void *aux)
 {
-	struct page *p = hash_entry(e, struct page, spt_elem);
-	free(p);
+	// struct page *p = hash_entry(e, struct page, spt_elem);
+	// struct frame *f = p->frame;
+	// list_remove(&f->list_elem);
+	// palloc_free_page(f->kva);
+	// free(f);
+	// vm_dealloc_page(p);
 }
 
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
@@ -417,12 +405,19 @@ void page_hash_copy(struct hash_elem *src_elem, void *aux)
 	}
 }
 
-void page_hash_munmap(struct hash_elem *elem, void *aux)
+void page_kill(struct hash_elem *elem, void *aux)
 {
 	struct page *page = hash_entry(elem, struct page, spt_elem);
 
+	// VM_FILE
 	if (page->operations->type == VM_FILE)
 	{
 		do_munmap(page->va);
 	}
+
+	struct frame *f = page->frame;
+	list_remove(&f->list_elem);
+	palloc_free_page(f->kva);
+	free(f);
+	vm_dealloc_page(page);
 }

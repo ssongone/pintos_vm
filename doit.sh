@@ -146,7 +146,8 @@ make
 cd build
 source ../../activate
 
-$MMAP_EXIT
+$MMAP_UNMAP
+# $MMAP_EXIT
 # $MMAP_CLEAN
 # $MMAP_OFF
 # $MMAP_BAD_OFF

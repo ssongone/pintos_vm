@@ -67,7 +67,7 @@ struct page {
 struct frame {
 	void *kva;
 	struct page *page;
-	struct hash_elem hash_elem;
+	struct list_elem list_elem;
 };
 
 /* The function table for page operations.
@@ -122,10 +122,6 @@ unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
 bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
 void page_hash_destructor(struct hash_elem *e, void *aux);
 void page_hash_copy(struct hash_elem *src_elem, void *aux);
-void page_hash_munmap(struct hash_elem *elem, void *aux);
-
-/* helper functions for frame hash */
-uint64_t frame_hash(const struct hash_elem *e, void *aux);
-bool frame_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+void page_kill(struct hash_elem *elem, void *aux);
 
 #endif  /* VM_VM_H */
