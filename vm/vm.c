@@ -356,7 +356,7 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt)
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 
-	hash_apply(&spt->hash_table, page_kill);
+	// hash_apply(&spt->hash_table, page_kill);
 
 	hash_destroy(spt, page_hash_destructor); // page, frame 관련 리소스 해제 / 버킷 리스트 해제
 }
@@ -379,12 +379,14 @@ bool page_less(const struct hash_elem *a_,
 
 void page_hash_destructor(struct hash_elem *e, void *aux)
 {
-	// struct page *p = hash_entry(e, struct page, spt_elem);
+	struct page *page = hash_entry(e, struct page, spt_elem);
 	// struct frame *f = p->frame;
 	// list_remove(&f->list_elem);
 	// palloc_free_page(f->kva);
 	// free(f);
 	// vm_dealloc_page(p);
+	vm_dealloc_page(page);
+
 }
 
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
@@ -410,14 +412,17 @@ void page_kill(struct hash_elem *elem, void *aux)
 	struct page *page = hash_entry(elem, struct page, spt_elem);
 
 	// VM_FILE
-	if (page->operations->type == VM_FILE)
-	{
-		do_munmap(page->va);
-	}
+	// if (page->operations->type == VM_FILE)
+	// {
+	// 	do_munmap(page->va);
+	// }
 
 	struct frame *f = page->frame;
-	list_remove(&f->list_elem);
-	palloc_free_page(f->kva);
-	free(f);
-	vm_dealloc_page(page);
+	if (f != NULL) {
+		pml4_clear_page(thread_current()->pml4, page->va);
+		list_remove(&f->list_elem);
+		palloc_free_page(f->kva);
+		free(f);
+	}
+
 }

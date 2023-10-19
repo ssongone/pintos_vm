@@ -55,8 +55,20 @@ file_backed_destroy(struct page *page)
 	{
 		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->file_length, file_page->offset);
 	}
-
+	
 	file_close(file_page->file);
+
+	// do_munmap(page->va);
+
+	struct frame *f = page->frame;
+	if (f != NULL)
+	{
+		pml4_clear_page(thread_current()->pml4, page->va);
+		list_remove(&f->list_elem);
+		palloc_free_page(f->kva);
+		free(f);
+	}
+
 }
 
 /* Do the mmap */
@@ -135,6 +147,8 @@ do_mmap(void *addr, size_t length, int writable,
 /* Do the munmap */
 void do_munmap(void *addr)
 {
+
+	// 주소검증, 매핑해제
 	// 1) TODO: 수정된 파일의 dirty bit를 변경하는 작업 필요.
 	// 2) TODO: 열려있는 파일이 삭제되었을 때에 대한 이해 필요. => file_reopen을 사용할 것
 	// 3) TODO: 서로 다른 프로세스가 같은 파일을 바라보는 경우 두 개의 데이터가 꼭 같을 필요는 없다. 물리 페이지에 대한 two mapping을 유지함으로써 가능
@@ -148,7 +162,6 @@ void do_munmap(void *addr)
 	if (!pml4_is_dirty(thread_current()->pml4, addr)) {
 		return;
 	}
-
 
 	if (page != NULL)
 	{
