@@ -386,8 +386,8 @@ void page_hash_destructor(struct hash_elem *e, void *aux)
 	// free(f);
 	// vm_dealloc_page(p);
 	vm_dealloc_page(page);
-
-}
+	
+	}
 
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
 {

@@ -4,6 +4,7 @@
 #include "threads/vaddr.h"
 #include "userprog/process.h"
 #include "lib/round.h"
+#include "threads/mmu.h"
 
 static bool file_backed_swap_in(struct page *page, void *kva);
 static bool file_backed_swap_out(struct page *page);
@@ -55,17 +56,18 @@ file_backed_destroy(struct page *page)
 	{
 		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->file_length, file_page->offset);
 	}
-	
+
 	file_close(file_page->file);
 
 	// do_munmap(page->va);
 
+	// pml4_clear_page(thread_current()->pml4, page->va);
 	struct frame *f = page->frame;
 	if (f != NULL)
 	{
-		pml4_clear_page(thread_current()->pml4, page->va);
+		// printf("🎁: %p\n", f->kva);
 		list_remove(&f->list_elem);
-		palloc_free_page(f->kva);
+		// palloc_free_page(f->kva);
 		free(f);
 	}
 
