@@ -326,11 +326,11 @@ unsigned call_tell(int fd)
 
 void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
-	if (fd == 0 || fd == 1 || is_kernel_vaddr(addr) || is_kernel_vaddr(addr))
+	if (fd == 0 || fd == 1 || is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length) || pg_round_down(offset) != offset || pg_ofs(addr) != 0 )
 		return NULL;
 
 
-	if (addr == 0 || length == 0)
+	if (addr == 0 || length <= 0 || addr + length <= 0)
 	{
 		return NULL;
 	}

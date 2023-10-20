@@ -78,8 +78,6 @@ void *
 do_mmap(void *addr, size_t length, int writable,
 		struct file *file, off_t offset)
 {
-	printf("do_mmap()\n");
-
 	// Your VM system must load pages lazily in mmap regions
 	// and use the mmaped file itself as a backing store for the mapping.
 
@@ -113,8 +111,6 @@ do_mmap(void *addr, size_t length, int writable,
 	ofs = offset;
 	read_bytes = file_length(reopened_file);
 	zero_bytes = (ROUND_UP(read_bytes, PGSIZE) - read_bytes);
-
-
 	pg_count = (length / PGSIZE);
 
 	while (read_bytes > 0 || zero_bytes > 0)
