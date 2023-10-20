@@ -766,7 +766,7 @@ bool lazy_load_segment(struct page *page, void *aux)
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
 	struct page_info *page_info = (struct page_info *)aux;
-	struct file *file = page_info->file;
+	struct file *file = file_reopen(page_info->file);
 	off_t ofs = page_info->ofs;
 	uint8_t *upage = page_info->upage;
 	uint32_t read_bytes = page_info->read_bytes;
@@ -785,10 +785,13 @@ bool lazy_load_segment(struct page *page, void *aux)
 		return false;
 	}
 
+	memset(page->frame->kva + read_bytes, 0, zero_bytes);
+
 	if (page->operations->type == VM_FILE)
 	{
 		page->file.file = file_reopen(file);
 		page->file.file_length = file_length(file);
+		page->file.read_bytes = read_bytes;
 		page->file.offset = ofs;
 		page->file.count = page_count;
 	}
@@ -831,8 +834,8 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		page_info->file = file_reopen(file);
 		page_info->ofs = ofs;
 		page_info->upage = upage;
-		page_info->read_bytes = read_bytes;
-		page_info->zero_bytes = zero_bytes;
+		page_info->read_bytes = page_read_bytes;
+		page_info->zero_bytes = page_zero_bytes;
 		page_info->writable = writable;
 		// void *aux = page_info;
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,

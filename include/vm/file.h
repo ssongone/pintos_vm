@@ -10,6 +10,7 @@ struct file_page {
 	struct file *file;
 	off_t file_length;
 	// size_t mapped_length;
+	off_t read_bytes;
 	off_t offset;
 	int count;
 };

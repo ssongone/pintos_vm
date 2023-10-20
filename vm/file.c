@@ -54,9 +54,8 @@ file_backed_destroy(struct page *page)
 
 	if (pml4_is_dirty(thread_current()->pml4, page->va))
 	{
-		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->file_length, file_page->offset);
+		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->read_bytes, file_page->offset);
 	}
-
 
 	// do_munmap(page->va);
 
@@ -70,7 +69,6 @@ file_backed_destroy(struct page *page)
 	// 	free(f);
 	// }
 	file_close(file_page->file);
-
 }
 
 /* Do the mmap */
@@ -97,8 +95,6 @@ do_mmap(void *addr, size_t length, int writable,
 	// if the range of pages mapped overlaps any existing set of mapped pages,
 	// including the stack or pages mapped at executable load time
 
-
-
 	// if the range of pages mapped overlaps any existing set of mapped pages, return NULL
 	struct supplemental_page_table *spt = &thread_current()->spt;
 	if (spt_find_page(spt, addr) != NULL)
@@ -122,8 +118,8 @@ do_mmap(void *addr, size_t length, int writable,
 		page_info->file = reopened_file;
 		page_info->ofs = ofs;
 		page_info->upage = upage;
-		page_info->read_bytes = read_bytes;
-		page_info->zero_bytes = zero_bytes;
+		page_info->read_bytes = page_read_bytes;
+		page_info->zero_bytes = page_zero_bytes;
 		page_info->writable = writable;
 		page_info->page_count = pg_count;
 
@@ -146,32 +142,31 @@ void do_munmap(void *addr)
 	struct page *page;
 	page = spt_find_page(&thread_current()->spt, addr);
 
-	struct file * temp_file = page->file.file;
+	struct file *temp_file = page->file.file;
 	int page_count = page->file.count;
-	// printf("🧸 page_count는 : %d\n", page_count);
 
-
-	//매핑 해제가 안되었어..
-	while (page_count > 0) {
+	// 매핑 해제가 안되었어..
+	while (page_count > 0)
+	{
 		page = spt_find_page(&thread_current()->spt, addr);
-		if (pml4_is_dirty(thread_current()->pml4, addr)) {
+		if (pml4_is_dirty(thread_current()->pml4, addr))
+		{
 			if (page != NULL)
 			{
-			struct file_page file_page = page->file;
-			// addr에 맵핑된 fd를 알아야 한다. 그리고 사이즈도 알아야 한다.
-			off_t write_bytes = file_write_at(file_page.file, addr, file_page.file_length, file_page.offset);
+				struct file_page file_page = page->file;
+				off_t write_bytes = file_write_at(file_page.file, addr, file_page.read_bytes, file_page.offset);
 			}
-		}		
+		}
 
-		pml4_clear_page(thread_current()->pml4, addr);	
+		pml4_clear_page(thread_current()->pml4, addr);
 		struct frame *f = page->frame;
 		// if (f != NULL)
-		// {	
-			// printf("🎁: %p\n", f->kva);
-			list_remove(&f->list_elem);
-			palloc_free_page(f->kva);
-			hash_delete(&thread_current()->spt.hash_table, &page->spt_elem);
-			free(f);
+		// {
+		// printf("🎁: %p\n", f->kva);
+		list_remove(&f->list_elem);
+		palloc_free_page(f->kva);
+		hash_delete(&thread_current()->spt.hash_table, &page->spt_elem);
+		free(f);
 		// }
 
 		addr += PGSIZE;
@@ -179,5 +174,4 @@ void do_munmap(void *addr)
 	}
 
 	file_close(temp_file);
-
 }
