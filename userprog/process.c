@@ -772,6 +772,7 @@ bool lazy_load_segment(struct page *page, void *aux)
 	uint32_t read_bytes = page_info->read_bytes;
 	uint32_t zero_bytes = page_info->zero_bytes;
 	bool writable = page_info->writable;
+	int page_count = page_info->page_count;
 
 	file_seek(file, ofs);
 	if (page == NULL)
@@ -789,6 +790,7 @@ bool lazy_load_segment(struct page *page, void *aux)
 		page->file.file = file_reopen(file);
 		page->file.file_length = file_length(file);
 		page->file.offset = ofs;
+		page->file.count = page_count;
 	}
 
 	return true;

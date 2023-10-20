@@ -76,6 +76,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			uninit_new(page, upage, init, type, aux, file_backed_initializer);
 		}
 
+
 		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
@@ -380,14 +381,9 @@ bool page_less(const struct hash_elem *a_,
 void page_hash_destructor(struct hash_elem *e, void *aux)
 {
 	struct page *page = hash_entry(e, struct page, spt_elem);
-	// struct frame *f = p->frame;
-	// list_remove(&f->list_elem);
-	// palloc_free_page(f->kva);
-	// free(f);
-	// vm_dealloc_page(p);
 	vm_dealloc_page(page);
-	
-	}
+
+}
 
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
 {

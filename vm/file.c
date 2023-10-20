@@ -57,19 +57,19 @@ file_backed_destroy(struct page *page)
 		off_t write_bytes = file_write_at(file_page->file, page->va, file_page->file_length, file_page->offset);
 	}
 
-	file_close(file_page->file);
 
 	// do_munmap(page->va);
 
 	// pml4_clear_page(thread_current()->pml4, page->va);
-	struct frame *f = page->frame;
-	if (f != NULL)
-	{
-		// printf("🎁: %p\n", f->kva);
-		list_remove(&f->list_elem);
-		// palloc_free_page(f->kva);
-		free(f);
-	}
+	// struct frame *f = page->frame;
+	// if (f != NULL)
+	// {
+	// 	// printf("🎁: %p\n", f->kva);
+	// 	list_remove(&f->list_elem);
+	// 	// palloc_free_page(f->kva);
+	// 	free(f);
+	// }
+	file_close(file_page->file);
 
 }
 
@@ -78,6 +78,7 @@ void *
 do_mmap(void *addr, size_t length, int writable,
 		struct file *file, off_t offset)
 {
+	printf("do_mmap()\n");
 
 	// Your VM system must load pages lazily in mmap regions
 	// and use the mmaped file itself as a backing store for the mapping.
@@ -93,15 +94,12 @@ do_mmap(void *addr, size_t length, int writable,
 	uint8_t *upage;
 	off_t ofs;
 	uint32_t read_bytes, zero_bytes;
-
+	int pg_count;
 	// TODO: 아래 실패조건은 어떻게 추가하지...?
 	// if the range of pages mapped overlaps any existing set of mapped pages,
 	// including the stack or pages mapped at executable load time
 
-	if (file_length(file) == 0 || pg_ofs(addr) != 0 || addr == 0 || length == 0)
-	{
-		return NULL;
-	}
+
 
 	// if the range of pages mapped overlaps any existing set of mapped pages, return NULL
 	struct supplemental_page_table *spt = &thread_current()->spt;
@@ -116,15 +114,14 @@ do_mmap(void *addr, size_t length, int writable,
 	read_bytes = file_length(reopened_file);
 	zero_bytes = (ROUND_UP(read_bytes, PGSIZE) - read_bytes);
 
+
+	pg_count = (length / PGSIZE);
+
 	while (read_bytes > 0 || zero_bytes > 0)
 	{
-		/* Do calculate how to fill this page.
-		 * We will read PAGE_READ_BYTES bytes from FILE
-		 * and zero the final PAGE_ZERO_BYTES bytes. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-		/* Set up aux to pass information to the lazy_load_segment. */
 		struct page_info *page_info = (struct page_info *)malloc(sizeof(struct page_info));
 		page_info->file = reopened_file;
 		page_info->ofs = ofs;
@@ -132,6 +129,7 @@ do_mmap(void *addr, size_t length, int writable,
 		page_info->read_bytes = read_bytes;
 		page_info->zero_bytes = zero_bytes;
 		page_info->writable = writable;
+		page_info->page_count = pg_count;
 
 		/* Allocate page */
 		if (!vm_alloc_page_with_initializer(VM_FILE, upage, writable, lazy_load_segment, page_info))
@@ -149,26 +147,41 @@ do_mmap(void *addr, size_t length, int writable,
 /* Do the munmap */
 void do_munmap(void *addr)
 {
-
-	// 주소검증, 매핑해제
-	// 1) TODO: 수정된 파일의 dirty bit를 변경하는 작업 필요.
-	// 2) TODO: 열려있는 파일이 삭제되었을 때에 대한 이해 필요. => file_reopen을 사용할 것
-	// 3) TODO: 서로 다른 프로세스가 같은 파일을 바라보는 경우 두 개의 데이터가 꼭 같을 필요는 없다. 물리 페이지에 대한 two mapping을 유지함으로써 가능
-
-	// 메모리 반환, 해제
 	struct page *page;
-	uint16_t pg_cnt, i;
-
 	page = spt_find_page(&thread_current()->spt, addr);
 
-	if (!pml4_is_dirty(thread_current()->pml4, addr)) {
-		return;
+	struct file * temp_file = page->file.file;
+	int page_count = page->file.count;
+	// printf("🧸 page_count는 : %d\n", page_count);
+
+
+	//매핑 해제가 안되었어..
+	while (page_count > 0) {
+		page = spt_find_page(&thread_current()->spt, addr);
+		if (pml4_is_dirty(thread_current()->pml4, addr)) {
+			if (page != NULL)
+			{
+			struct file_page file_page = page->file;
+			// addr에 맵핑된 fd를 알아야 한다. 그리고 사이즈도 알아야 한다.
+			off_t write_bytes = file_write_at(file_page.file, addr, file_page.file_length, file_page.offset);
+			}
+		}		
+
+		pml4_clear_page(thread_current()->pml4, addr);	
+		struct frame *f = page->frame;
+		// if (f != NULL)
+		// {	
+			// printf("🎁: %p\n", f->kva);
+			list_remove(&f->list_elem);
+			palloc_free_page(f->kva);
+			hash_delete(&thread_current()->spt.hash_table, &page->spt_elem);
+			free(f);
+		// }
+
+		addr += PGSIZE;
+		page_count--;
 	}
 
-	if (page != NULL)
-	{
-		struct file_page file_page = page->file;
-		// addr에 맵핑된 fd를 알아야 한다. 그리고 사이즈도 알아야 한다.
-		off_t write_bytes = file_write_at(file_page.file, addr, file_page.file_length, file_page.offset);
-	}
+	file_close(temp_file);
+
 }
