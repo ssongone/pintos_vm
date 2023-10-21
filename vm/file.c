@@ -36,7 +36,8 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 static bool
 file_backed_swap_in(struct page *page, void *kva)
 {
-	struct file_page *file_page UNUSED = &page->file;
+	struct file_page *file_page = &page->file;
+	
 }
 
 /* Swap out the page by writeback contents to the file. */
@@ -145,7 +146,6 @@ void do_munmap(void *addr)
 	struct file *temp_file = page->file.file;
 	int page_count = page->file.count;
 
-	// 매핑 해제가 안되었어..
 	while (page_count > 0)
 	{
 		page = spt_find_page(&thread_current()->spt, addr);

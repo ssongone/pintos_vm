@@ -173,14 +173,15 @@ disk_print_stats (void) {
 	}
 }
 
-/* Returns the disk numbered DEV_NO--either 0 or 1 for master or
-   slave, respectively--within the channel numbered CHAN_NO.
+/* 
+DEV_NO로 번호가 매겨진 디스크를 반환합니다. 마스터의 경우 0 또는 1입니다
+각각 CHAN_NO로 번호가 매겨진 채널 내에서 slave.
 
-   Pintos uses disks this way:
-0:0 - boot loader, command line args, and operating system kernel
-0:1 - file system
-1:0 - scratch
-1:1 - swap
+핀토스는 다음과 같은 방식으로 디스크를 사용한다:
+0:0 - 부트 로더, 명령줄 아르그 및 운영 체제 커널
+0:1 - 파일 시스템
+1:0 - 스크래치
+1:1 - 스왑
 */
 struct disk *
 disk_get (int chan_no, int dev_no) {
@@ -203,10 +204,9 @@ disk_size (struct disk *d) {
 	return d->capacity;
 }
 
-/* Reads sector SEC_NO from disk D into BUFFER, which must have
-   room for DISK_SECTOR_SIZE bytes.
-   Internally synchronizes accesses to disks, so external
-   per-disk locking is unneeded. */
+/* 섹터 SEC_NO를 디스크 D에서 버퍼(BUFFER)로 읽으며, 
+이는 DISK_SECTOR_SIZE 바이트 공간이 있어야 한다.
+디스크에 대한 액세스를 내부적으로 동기화하므로 디스크당 외부 잠금이 필요하지 않습니다.*/
 void
 disk_read (struct disk *d, disk_sector_t sec_no, void *buffer) {
 	struct channel *c;
@@ -220,7 +220,7 @@ disk_read (struct disk *d, disk_sector_t sec_no, void *buffer) {
 	issue_pio_command (c, CMD_READ_SECTOR_RETRY);
 	sema_down (&c->completion_wait);
 	if (!wait_while_busy (d))
-		PANIC ("%s: disk read failed, sector=%"PRDSNu, d->name, sec_no);
+		PANIC ("%s: disk read failed, sector=%" PRDSNu, d->name, sec_no);
 	input_sector (c, buffer);
 	d->read_cnt++;
 	lock_release (&c->lock);

@@ -146,13 +146,4 @@ make
 cd build
 source ../../activate
 
-# $MMAP_UNMAP
-# $MMAP_EXIT
-# $MMAP_CLEAN
-# $MMAP_MISALIGN
-$MMAP_OFF
-# $MMAP_KERNEL
-# $MMAP_EXIT
-# $MMAP_SHUFFLE
-# $MMAP_READ
-
+$SWAP_ANON

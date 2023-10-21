@@ -267,6 +267,12 @@ bitmap_all (const struct bitmap *b, size_t start, size_t cnt) {
    consecutive bits in B at or after START that are all set to
    VALUE.
    If there is no such group, returns BITMAP_ERROR. */
+/* 설정된 또는 설정되지 않은 비트를 찾는 함수 */
+
+/* B 내에서 시작 인덱스를 찾아주고 반환합니다. 
+이때, 찾은 비트 그룹은 START 이후에 위치하며, 그룹 내의 모든 비트가 VALUE와 일치합니다.
+만약 그러한 그룹이 없다면, BITMAP_ERROR를 반환합니다. */
+
 size_t
 bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) {
 	ASSERT (b != NULL);

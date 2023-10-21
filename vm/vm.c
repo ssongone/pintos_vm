@@ -156,20 +156,34 @@ vm_evict_frame(void)
 	return NULL;
 }
 
-/* palloc() and get frame. If there is no available page, evict the page
- * and return it. This always return valid address. That is, if the user pool
- * memory is full, this function evicts the frame to get the available memory
- * space.*/
+/* palloc() 및 get frame 사용 가능한 페이지가 없으면 해당 페이지를 퇴거하고 반환합니다.
+* 이것은 항상 유효한 주소를 반환한다. 즉, 사용자 풀 메모리가 꽉 차 있으면, 
+* 이 함수는 사용 가능한 메모리 공간을 얻기 위해 프레임을 제거한다. */
+
+/*
+1. 당신의 페이지 재배치 알고리즘을 이용하여, 쫓아낼 프레임을 고릅니다. 아래에서 설명할 “accessed”, “dirty” 비트들(페이지 테이블에 있는)이 유용할 것입니다.
+2. 해당 프레임을 참조하는 모든 페이지 테이블에서 참조를 제거합니다. 공유를 구현하지 않았을 경우, 해당 프레임을 참조하는 페이지는 항상 한 개만 존재해야 합니다.
+3. 필요하다면, 페이지를 파일 시스템이나 스왑에 write 합니다. 쫓아내어진(evicted) 프레임은 이제 다른 페이지를 저장하는 데에 사용할 수 있습니다.
+*/
 static struct frame *
 vm_get_frame(void)
 {
 	struct frame *frame = NULL;
 	void *addr = palloc_get_page(PAL_USER | PAL_ZERO);
-	frame = calloc(1, sizeof(struct frame));
-	frame->kva = addr;
 
-	/* TODO: Fill this function. */
+	if (addr == NULL) {
+		// printf("공간이 없어..!\n");
+		struct list_elem *out_elem = list_pop_front(&frame_list);
+		struct frame* out_frame = list_entry(out_elem, struct frame, list_elem);
+		// out_frame을 일단 디스크로 보내야해..
+		swap_out(out_frame->page);
 
+		frame = out_frame;
+		frame->page = NULL;
+	} else {
+		frame = calloc(1, sizeof(struct frame));
+		frame->kva = addr;
+	}
 	list_push_back(&frame_list, &frame->list_elem);
 
 	ASSERT(frame != NULL);
