@@ -1,10 +1,8 @@
-/* Checks if anonymous pages 
- * are swapped out and swapped in properly 
- * For this test, Pintos memory size is 10MB 
- * First, allocates big chunks of memory, 
- * does some write operations on each chunk, 
- * then check if the data is consistent
- * Lastly, frees the allocated memory. */
+/* 익명 페이지가 스왑 아웃되고 제대로 스왑 인되었는지 확인합니다 
+이 테스트에서 Pintos 메모리 크기는 10MB입니다 
+* 먼저, 큰 메모리 청크를 할당하고, 각 청크에 대한 쓰기 작업을 수행합니다, 
+* 그런 다음 데이터가 일치하는지 확인합니다
+* 마지막으로 할당된 메모리를 해제합니다. */
 
 #include <string.h>
 #include <stdint.h>

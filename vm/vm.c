@@ -150,7 +150,7 @@ vm_get_victim(void)
 static struct frame *
 vm_evict_frame(void)
 {
-	struct frame *victim UNUSED = vm_get_victim();
+	struct frame *victim = vm_get_victim();
 	/* TODO: swap out the victim and return the evicted frame. */
 
 	return NULL;
@@ -172,11 +172,13 @@ vm_get_frame(void)
 	void *addr = palloc_get_page(PAL_USER | PAL_ZERO);
 
 	if (addr == NULL) {
+
 		// printf("공간이 없어..!\n");
 		struct list_elem *out_elem = list_pop_front(&frame_list);
 		struct frame* out_frame = list_entry(out_elem, struct frame, list_elem);
 		// out_frame을 일단 디스크로 보내야해..
 		swap_out(out_frame->page);
+		memset(out_frame->kva, 0, PGSIZE);
 
 		frame = out_frame;
 		frame->page = NULL;
@@ -188,7 +190,6 @@ vm_get_frame(void)
 
 	ASSERT(frame != NULL);
 	ASSERT(frame->page == NULL);
-
 	return frame;
 }
 
