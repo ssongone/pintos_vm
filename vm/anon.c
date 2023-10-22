@@ -2,6 +2,8 @@
 
 #include "vm/vm.h"
 #include "devices/disk.h"
+#include "bitmap.h"
+#include "threads/mmu.h"
 
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
@@ -25,7 +27,7 @@ vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
 
 	swap_disk = disk_get(1,1);
-	swap_bitmap = bitmap_create(200);
+	swap_bitmap = bitmap_create(disk_size(swap_disk));
 }
 
 /* Initialize the file mapping */
@@ -40,25 +42,32 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 /* Swap in the page by read contents from the swap disk. */
 static bool
 anon_swap_in (struct page *page, void *kva) {
-	printf("anon_swap_in\n");
 	struct anon_page *anon_page = &page->anon;
-	disk_sector_t sec_no = anon_page->disk_sec;
-	
-	disk_read (swap_disk, sec_no, kva);
+	size_t bit_no = anon_page->disk_sec;
+
+	for (int i = 0 ; i < SECTOR_PER_DISK ; i++) {
+		disk_read (swap_disk, bit_no*SECTOR_PER_DISK+i, kva+(i * DISK_SECTOR_SIZE));
+	}
+	bitmap_flip(swap_bitmap, bit_no);
 	anon_page->disk_sec = NULL;
+	return true;
 }
 
-/* Swap out the page by writing contents to the swap disk. */
+
 static bool
 anon_swap_out (struct page *page) {
-	printf("anon_swap_out\n");
 	struct anon_page *anon_page = &page->anon;
 	
-	// 비트맵에서 빈 칸 찾아오고 거기에 쓰기
-	// disk_sector_t sec_no;
-	size_t sec_no = bitmap_scan(swap_bitmap, 0, 1, false);
-	disk_write (swap_disk, sec_no, page->frame->kva);
-	anon_page->disk_sec = sec_no;
+	size_t bit_idx = bitmap_scan(swap_bitmap, 0, 1, false);
+	bitmap_flip(swap_bitmap, bit_idx);
+
+	void* tmp = page->frame->kva;
+	for (int i = 0 ; i < SECTOR_PER_DISK ; i++) {
+		disk_write (swap_disk, bit_idx*SECTOR_PER_DISK+i, page->va+(i * DISK_SECTOR_SIZE));
+	}
+	pml4_clear_page(thread_current()->pml4, page->va);
+	page->frame = NULL;
+	anon_page->disk_sec = bit_idx;
 }
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
