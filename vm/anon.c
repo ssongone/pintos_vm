@@ -42,7 +42,6 @@ bool anon_initializer(struct page *page, enum vm_type type, void *kva)
 static bool
 anon_swap_in(struct page *page, void *kva)
 {
-	printf("🐙 anon_swap_in\n");
 	struct anon_page *anon_page = &page->anon;
 	size_t bit_no = anon_page->disk_sec;
 

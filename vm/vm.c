@@ -57,7 +57,6 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
 	// struct page *new_page = calloc(1, sizeof(struct page));
-
 	if (spt_find_page(spt, upage) == NULL)
 	{
 		/* TODO: Create the page, fetch the initialier according to the VM type, */
@@ -75,7 +74,6 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		{
 			uninit_new(page, upage, init, type, aux, file_backed_initializer);
 		}
-
 
 		page->writable = writable;
 
@@ -157,8 +155,8 @@ vm_evict_frame(void)
 }
 
 /* palloc() 및 get frame 사용 가능한 페이지가 없으면 해당 페이지를 퇴거하고 반환합니다.
-* 이것은 항상 유효한 주소를 반환한다. 즉, 사용자 풀 메모리가 꽉 차 있으면, 
-* 이 함수는 사용 가능한 메모리 공간을 얻기 위해 프레임을 제거한다. */
+ * 이것은 항상 유효한 주소를 반환한다. 즉, 사용자 풀 메모리가 꽉 차 있으면,
+ * 이 함수는 사용 가능한 메모리 공간을 얻기 위해 프레임을 제거한다. */
 
 /*
 1. 당신의 페이지 재배치 알고리즘을 이용하여, 쫓아낼 프레임을 고릅니다. 아래에서 설명할 “accessed”, “dirty” 비트들(페이지 테이블에 있는)이 유용할 것입니다.
@@ -171,18 +169,21 @@ vm_get_frame(void)
 	struct frame *frame = NULL;
 	void *addr = palloc_get_page(PAL_USER | PAL_ZERO);
 
-	if (addr == NULL) {
+	if (addr == NULL)
+	{
 
 		// printf("공간이 없어..!\n");
 		struct list_elem *out_elem = list_pop_front(&frame_list);
-		struct frame* out_frame = list_entry(out_elem, struct frame, list_elem);
+		struct frame *out_frame = list_entry(out_elem, struct frame, list_elem);
 		// out_frame을 일단 디스크로 보내야해..
 		swap_out(out_frame->page);
 		memset(out_frame->kva, 0, PGSIZE);
 
 		frame = out_frame;
 		frame->page = NULL;
-	} else {
+	}
+	else
+	{
 		frame = calloc(1, sizeof(struct frame));
 		frame->kva = addr;
 	}
@@ -350,6 +351,7 @@ vm_do_claim_page(struct page *page)
 	{
 		return false;
 	}
+
 	return swap_in(page, frame->kva);
 }
 
@@ -397,7 +399,6 @@ void page_hash_destructor(struct hash_elem *e, void *aux)
 {
 	struct page *page = hash_entry(e, struct page, spt_elem);
 	vm_dealloc_page(page);
-
 }
 
 void page_hash_copy(struct hash_elem *src_elem, void *aux)
@@ -410,7 +411,7 @@ void page_hash_copy(struct hash_elem *src_elem, void *aux)
 	}
 	else
 	{
-		vm_alloc_page(VM_ANON, src_p->va, src_p->writable);
+		vm_alloc_page(src_p->operations->type, src_p->va, src_p->writable);
 		vm_claim_page(src_p->va);
 		struct page *child_page = spt_find_page(&thread_current()->spt, src_p->va);
 		if (src_p->frame != NULL)
@@ -429,11 +430,11 @@ void page_kill(struct hash_elem *elem, void *aux)
 	// }
 
 	struct frame *f = page->frame;
-	if (f != NULL) {
+	if (f != NULL)
+	{
 		pml4_clear_page(thread_current()->pml4, page->va);
 		list_remove(&f->list_elem);
 		palloc_free_page(f->kva);
 		free(f);
 	}
-
 }

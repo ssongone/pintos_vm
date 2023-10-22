@@ -123,8 +123,8 @@ void call_exit(struct thread *curr, uint64_t status)
 
 int call_write(int fd, const void *buffer, unsigned size)
 {
-	check_addr(buffer);
 	sema_down(&syn_sema);
+	check_addr(buffer);
 
 	if (fd == 1) // fd 0 : 표준입력, fd 1 : 표준 출력
 	{
@@ -140,6 +140,7 @@ int call_write(int fd, const void *buffer, unsigned size)
 	struct file *file = find_file_by_Fd(fd);
 	if (file == NULL)
 	{
+		sema_up(&syn_sema);
 		call_exit(thread_current(), -1);
 	}
 
@@ -154,8 +155,12 @@ int call_write(int fd, const void *buffer, unsigned size)
 }
 bool call_create(const char *file, unsigned initial_size)
 {
+	sema_down(&syn_sema);
 	check_addr(file);
-	return filesys_create(file, initial_size);
+	bool result = filesys_create(file, initial_size);
+	sema_up(&syn_sema);
+
+	return result;
 }
 
 void call_halt(void)
@@ -165,12 +170,14 @@ void call_halt(void)
 
 int call_open(const char *file)
 {
+	sema_down(&syn_sema);
 	check_addr(file);
 
 	struct file *open_file = filesys_open(file);
 
 	if (open_file == NULL)
 	{
+		sema_up(&syn_sema);
 		return -1;
 	}
 
@@ -181,44 +188,51 @@ int call_open(const char *file)
 		file_close(open_file);
 	}
 
+	sema_up(&syn_sema);
 	return fd;
 }
 
 void call_close(int fd)
 {
+	sema_down(&syn_sema);
 
 	struct thread *cur = thread_current();
 	struct file *file = find_file_by_Fd(fd);
 	if (file == NULL)
 	{
+		sema_up(&syn_sema);
 		return;
 	}
 	cur->fd_table[fd] = NULL;
 
 	file_close(file);
+	sema_up(&syn_sema);
+
 }
 
 int call_read(int fd, void *buffer, unsigned size)
 {
+	sema_down(&syn_sema);
 	check_addr(buffer);
 
 	if (fd == 1)
 	{
+		sema_up(&syn_sema);
 		return -1;
 	}
 	if (fd == 0)
 	{
 		int byte = input_getc();
+		sema_up(&syn_sema);
 		return byte;
 	}
 
 	struct page *buf_page = spt_find_page(&thread_current()->spt, buffer);
 	if (buf_page != NULL && !buf_page->writable)
 	{
+		sema_up(&syn_sema);
 		call_exit(thread_current(), -1);
 	}
-
-	sema_down(&syn_sema);
 
 	struct file *file = find_file_by_Fd(fd);
 	int read_result;
@@ -257,10 +271,15 @@ int call_filesize(int fd)
 
 int call_fork(const char *thread_name)
 {
+	sema_down(&syn_sema);
+
 	check_addr(thread_name);
 
-	return process_fork(thread_name, &thread_current()->ptf);
-	;
+	int result = process_fork(thread_name, &thread_current()->ptf);
+	sema_up(&syn_sema);
+
+	return result;
+	
 }
 
 int call_exec(const char *file)
@@ -288,8 +307,8 @@ int call_exec(const char *file)
 bool call_remove(const char *file)
 {
 
-	check_addr(file);
 	sema_down(&syn_sema);
+	check_addr(file);
 	bool return_ans = filesys_remove(file);
 	sema_up(&syn_sema);
 	return return_ans;
@@ -316,7 +335,7 @@ unsigned call_tell(int fd)
 }
 
 // void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
-// {	
+// {
 // 	struct file *file = find_file_by_Fd(fd);
 // 	if (file == NULL){
 // 		return NULL;
@@ -326,9 +345,8 @@ unsigned call_tell(int fd)
 
 void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 {
-	if (fd == 0 || fd == 1 || is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length) || pg_round_down(offset) != offset || pg_ofs(addr) != 0 )
+	if (fd == 0 || fd == 1 || is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length) || pg_round_down(offset) != offset || pg_ofs(addr) != 0)
 		return NULL;
-
 
 	if (addr == 0 || length <= 0 || addr + length <= 0)
 	{
@@ -336,14 +354,16 @@ void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	}
 	struct file *file = find_file_by_Fd(fd);
 
-	if (file == NULL || offset >= file_length(file)){
+	if (file == NULL || offset >= file_length(file))
+	{
 		return NULL;
 	}
 	return do_mmap(addr, length, writable, file, offset);
 }
 
-void call_munmap (void *addr)
+void call_munmap(void *addr)
 {
+
 	do_munmap(addr);
 }
 
@@ -387,6 +407,7 @@ void check_addr(const uint64_t *addr)
 	if (addr == NULL || pml4e_walk(curr->pml4, addr, false) == NULL)
 	{
 		// exit(-1);
+		sema_up(&syn_sema);
 		call_exit(curr, -1);
 	}
 }

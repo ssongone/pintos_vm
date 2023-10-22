@@ -36,7 +36,6 @@ bool file_backed_initializer(struct page *page, enum vm_type type, void *kva)
 static bool
 file_backed_swap_in(struct page *page, void *kva)
 {
-	printf("😁 file_backed_swap_in\n");
 	struct file_page *file_page = &page->file;
 	// disk
 	file_read_at(file_page->file, page->va, file_page->read_bytes, file_page->offset);
@@ -48,8 +47,6 @@ file_backed_swap_in(struct page *page, void *kva)
 static bool
 file_backed_swap_out(struct page *page)
 {
-	printf("🌈 file_backed_swap_out\n");
-
 	struct file_page *file_page UNUSED = &page->file;
 
 	if (pml4_is_dirty(thread_current()->pml4, page->va))
@@ -176,14 +173,13 @@ void do_munmap(void *addr)
 
 		pml4_clear_page(thread_current()->pml4, addr);
 		struct frame *f = page->frame;
-		// if (f != NULL)
-		// {
-		// printf("🎁: %p\n", f->kva);
-		list_remove(&f->list_elem);
-		palloc_free_page(f->kva);
+		if (f != NULL)
+		{
+			list_remove(&f->list_elem);
+			palloc_free_page(f->kva);
+			free(f);
+		}
 		hash_delete(&thread_current()->spt.hash_table, &page->spt_elem);
-		free(f);
-		// }
 
 		addr += PGSIZE;
 		page_count--;
