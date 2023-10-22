@@ -7,9 +7,9 @@
 
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
-static bool anon_swap_in (struct page *page, void *kva);
-static bool anon_swap_out (struct page *page);
-static void anon_destroy (struct page *page);
+static bool anon_swap_in(struct page *page, void *kva);
+static bool anon_swap_out(struct page *page);
+static void anon_destroy(struct page *page);
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations anon_ops = {
@@ -19,11 +19,10 @@ static const struct page_operations anon_ops = {
 	.type = VM_ANON,
 };
 
-
-static struct bitmap* swap_bitmap;
+static struct bitmap *swap_bitmap;
 /* Initialize the data for anonymous pages */
-void
-vm_anon_init (void) {
+void vm_anon_init(void)
+{
 	/* TODO: Set up the swap_disk. */
 
 	swap_disk = disk_get(1,1);
@@ -31,8 +30,8 @@ vm_anon_init (void) {
 }
 
 /* Initialize the file mapping */
-bool
-anon_initializer (struct page *page, enum vm_type type, void *kva) {
+bool anon_initializer(struct page *page, enum vm_type type, void *kva)
+{
 	/* Set up the handler */
 	page->operations = &anon_ops;
 
@@ -50,6 +49,7 @@ anon_swap_in (struct page *page, void *kva) {
 	}
 	bitmap_flip(swap_bitmap, bit_no);
 	anon_page->disk_sec = NULL;
+	return true;
 	return true;
 }
 
@@ -72,7 +72,8 @@ anon_swap_out (struct page *page) {
 
 /* Destroy the anonymous page. PAGE will be freed by the caller. */
 static void
-anon_destroy (struct page *page) {
+anon_destroy(struct page *page)
+{
 	struct anon_page *anon_page = &page->anon;
 
 	struct frame *f = page->frame;
