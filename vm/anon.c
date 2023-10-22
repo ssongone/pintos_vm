@@ -17,7 +17,6 @@ static const struct page_operations anon_ops = {
 	.type = VM_ANON,
 };
 
-
 static struct bitmap *swap_bitmap;
 /* Initialize the data for anonymous pages */
 void vm_anon_init(void)
@@ -79,6 +78,7 @@ anon_swap_out(struct page *page)
 	pml4_clear_page(thread_current()->pml4, page->va);
 
 	anon_page->disk_sec = sec_no;
+	page->frame = NULL;
 
 	return true;
 }
