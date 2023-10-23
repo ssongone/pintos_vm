@@ -46,73 +46,57 @@ void syscall_init(void)
 			  FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-/* The main system call interface */
-void syscall_handler(struct intr_frame *f)
-{
-	struct thread *curr = thread_current();
-	// TODO: Your implementation goes here.
 
-	switch (f->R.rax)
-	{
-	case SYS_WRITE:
-		f->R.rax = call_write(f->R.rdi, f->R.rsi, f->R.rdx);
-		break;
-	case SYS_EXIT:
-		call_exit(curr, f->R.rdi);
-		break;
-	case SYS_CREATE:
-		f->R.rax = call_create(f->R.rdi, f->R.rsi);
-		break;
-	case SYS_HALT:
-		call_halt();
-		break;
-	case SYS_OPEN:
-		f->R.rax = call_open(f->R.rdi);
-		break;
-	case SYS_CLOSE:
-		call_close(f->R.rdi);
-		break;
-	case SYS_READ:
-		f->R.rax = call_read(f->R.rdi, f->R.rsi, f->R.rdx);
-		break;
-	case SYS_FILESIZE:
-		f->R.rax = call_filesize(f->R.rdi);
-		break;
-	case SYS_WAIT:
-		f->R.rax = call_wait(f->R.rdi);
-		break;
-	case SYS_FORK:
-		memcpy(&curr->ptf, f, sizeof(struct intr_frame));
-		f->R.rax = call_fork(f->R.rdi);
-		break;
-	case SYS_EXEC:
-		f->R.rax = call_exec(f->R.rdi);
-		break;
-	case SYS_REMOVE:
-		f->R.rax = call_remove(f->R.rdi);
-		break;
-	case SYS_SEEK:
-		call_seek(f->R.rdi, f->R.rsi);
-		break;
-	case SYS_TELL:
-		f->R.rax = call_tell(f->R.rdi);
-		break;
-	case SYS_MMAP:
-		// 파일이 매핑된 가상 주소를 반환. mmap에 실패할 경우 NULL을 반환
-		// TODO: rcx로 들어가야 할 값이 왜 r10으로 들어가고 있는지 확인 필요
-		f->R.rax = call_mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
-		break;
-	case SYS_MUNMAP:
-		call_munmap(f->R.rdi);
-		break;
-	default:
-		call_exit(curr, -1);
-		break;
+
+typedef uint64_t (*syscall_handler_t)(struct res_data);
+
+syscall_handler_t syscall_handlers[] = {
+    [SYS_WRITE] = call_write,
+    [SYS_EXIT] = call_exit,
+    [SYS_CREATE] = call_create,
+    [SYS_HALT] = call_halt,
+    [SYS_OPEN] = call_open,
+    [SYS_CLOSE] = call_close,
+    [SYS_READ] = call_read,
+    [SYS_FILESIZE] = call_filesize,
+    [SYS_WAIT] = call_wait,
+    [SYS_FORK] = call_fork,
+    [SYS_EXEC] = call_exec,
+    [SYS_REMOVE] = call_remove,
+    [SYS_SEEK] = call_seek,
+    [SYS_TELL] = call_tell,
+    [SYS_MMAP] = call_mmap,
+    [SYS_MUNMAP] = call_munmap,
+};
+
+void syscall_handler(struct intr_frame *f) {
+	struct thread *curr = thread_current();
+	syscall_handler_t handler = syscall_handlers[f->R.rax];
+
+	struct res_data res_data = {
+		.rdi = f->R.rdi,
+        .rsi = f->R.rsi,
+        .rdx = f->R.rdx,
+		.r10 = f->R.r10,
+		.r9 = f->R.r9,
+		.r8 = f->R.r8,
+		.f = f
+	};
+
+	
+	if (handler) {
+		f->R.rax = handler(res_data);
+		// handler(res_data);
+		return;
 	}
+
+	exit(-1);
 }
 
-void call_exit(struct thread *curr, uint64_t status)
+void call_exit(struct res_data res_data)
 {
+	struct thread *curr = thread_current(); 
+	uint64_t status = res_data.rdi; 
 	curr->exit_status = status;
 
 	printf("%s: exit(%d)\n", curr->name, status);
@@ -121,8 +105,24 @@ void call_exit(struct thread *curr, uint64_t status)
 	return;
 }
 
-int call_write(int fd, const void *buffer, unsigned size)
+void exit(uint64_t status)
 {
+	struct thread *curr = thread_current(); 
+	curr->exit_status = status;
+
+	printf("%s: exit(%d)\n", curr->name, status);
+
+	thread_exit();
+	return;
+}
+
+int call_write(struct res_data res_data)
+{
+
+	int fd = res_data.rdi;
+	const void *buffer = res_data.rsi;
+	unsigned size = res_data.rdx;
+
 	sema_down(&syn_sema);
 	check_addr(buffer);
 
@@ -141,7 +141,7 @@ int call_write(int fd, const void *buffer, unsigned size)
 	if (file == NULL)
 	{
 		sema_up(&syn_sema);
-		call_exit(thread_current(), -1);
+		exit(-1);
 	}
 
 	if (file->deny_write)
@@ -153,8 +153,12 @@ int call_write(int fd, const void *buffer, unsigned size)
 	sema_up(&syn_sema);
 	return write_byte;
 }
-bool call_create(const char *file, unsigned initial_size)
+
+bool call_create(struct res_data res_data)
 {
+	const char *file = res_data.rdi;
+	unsigned initial_size = res_data.rsi;
+
 	sema_down(&syn_sema);
 	check_addr(file);
 	bool result = filesys_create(file, initial_size);
@@ -163,13 +167,14 @@ bool call_create(const char *file, unsigned initial_size)
 	return result;
 }
 
-void call_halt(void)
+void call_halt(struct res_data res_data)
 {
 	power_off();
 }
 
-int call_open(const char *file)
+int call_open(struct res_data res_data)
 {
+	const char * file = res_data.rdi;
 	sema_down(&syn_sema);
 	check_addr(file);
 
@@ -192,8 +197,10 @@ int call_open(const char *file)
 	return fd;
 }
 
-void call_close(int fd)
+void call_close(struct res_data res_data)
 {
+	int fd = res_data.rdi;
+
 	sema_down(&syn_sema);
 
 	struct thread *cur = thread_current();
@@ -210,8 +217,12 @@ void call_close(int fd)
 
 }
 
-int call_read(int fd, void *buffer, unsigned size)
+int call_read(struct res_data res_data)
 {
+	int fd = res_data.rdi;
+	void *buffer = res_data.rsi;
+	unsigned size = res_data.rdx;
+
 	sema_down(&syn_sema);
 	check_addr(buffer);
 
@@ -231,7 +242,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	if (buf_page != NULL && !buf_page->writable)
 	{
 		sema_up(&syn_sema);
-		call_exit(thread_current(), -1);
+		exit(-1);
 	}
 
 	struct file *file = find_file_by_Fd(fd);
@@ -240,7 +251,7 @@ int call_read(int fd, void *buffer, unsigned size)
 	if (file == NULL)
 	{
 		sema_up(&syn_sema);
-		call_exit(thread_current(), -1);
+		exit(-1);
 		return -1;
 	}
 	else
@@ -252,13 +263,16 @@ int call_read(int fd, void *buffer, unsigned size)
 	return read_result;
 }
 
-int call_wait(tid_t child_tid)
+int call_wait(struct res_data res_data)
 {
+	tid_t child_tid = res_data.rdi;
 	return process_wait(child_tid);
 }
 
-int call_filesize(int fd)
+int call_filesize(struct res_data res_data)
 {
+	int fd = res_data.rdi;
+
 	struct file *file = find_file_by_Fd(fd);
 
 	if (file == NULL)
@@ -269,21 +283,29 @@ int call_filesize(int fd)
 	return file_length(file);
 }
 
-int call_fork(const char *thread_name)
+int call_fork(struct res_data res_data)
 {
+	struct thread * curr = thread_current();
+	
+	const char *thread_name = res_data.rdi;
+	struct intr_frame * f = res_data.f;
+
+	memcpy(&curr->ptf, f, sizeof(struct intr_frame));
+
 	sema_down(&syn_sema);
 
 	check_addr(thread_name);
 
-	int result = process_fork(thread_name, &thread_current()->ptf);
+	int result = process_fork(thread_name, &curr->ptf);
 	sema_up(&syn_sema);
 
 	return result;
 	
 }
 
-int call_exec(const char *file)
+int call_exec(struct res_data res_data)
 {
+	const char *file = res_data.rdi;
 	char *file_copy;
 	check_addr(file);
 
@@ -291,7 +313,7 @@ int call_exec(const char *file)
 
 	if (!file_copy)
 	{
-		call_exit(thread_current(), -1);
+		exit(-1);
 		return -1;
 	}
 
@@ -299,14 +321,14 @@ int call_exec(const char *file)
 	if (process_exec(file_copy) == -1)
 	{
 
-		call_exit(thread_current(), -1);
+		exit(-1);
 		return -1;
 	}
 }
 
-bool call_remove(const char *file)
+bool call_remove(struct res_data res_data)
 {
-
+	const char *file = res_data.rdi;
 	sema_down(&syn_sema);
 	check_addr(file);
 	bool return_ans = filesys_remove(file);
@@ -314,18 +336,23 @@ bool call_remove(const char *file)
 	return return_ans;
 }
 
-void call_seek(int fd, unsigned new_pos)
+void call_seek(struct res_data res_data)
 {
+	int fd = res_data.rdi;
+	unsigned new_pos = res_data.rsi;
 	struct file *cur = thread_current()->fd_table[fd];
 
 	if (cur != NULL)
 	{
 		file_seek(cur, new_pos);
 	}
+	
+	return 0;
 }
 
-unsigned call_tell(int fd)
+unsigned call_tell(struct res_data res_data)
 {
+	int fd = res_data.rdi;
 	struct file *cur = thread_current()->fd_table[fd];
 
 	if (cur != NULL)
@@ -334,17 +361,14 @@ unsigned call_tell(int fd)
 	}
 }
 
-// void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
-// {
-// 	struct file *file = find_file_by_Fd(fd);
-// 	if (file == NULL){
-// 		return NULL;
-// 	}
-// 	return do_mmap(addr, length, writable, file, offset);
-// }
-
-void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
+void * call_mmap(struct res_data res_data)
 {
+	void *addr = res_data.rdi;
+	size_t length = res_data.rsi;
+	int writable = res_data.rdx;
+	int fd = res_data.r10;
+	off_t offset = res_data.r8;
+
 	if (fd == 0 || fd == 1 || is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length) || pg_round_down(offset) != offset || pg_ofs(addr) != 0)
 		return NULL;
 
@@ -361,11 +385,12 @@ void *call_mmap(void *addr, size_t length, int writable, int fd, off_t offset)
 	return do_mmap(addr, length, writable, file, offset);
 }
 
-void call_munmap(void *addr)
+void call_munmap(struct res_data res_data)
 {
-
+	void *addr = (void *) res_data.rdi;
 	do_munmap(addr);
 }
+
 
 int add_file_to_fdt(struct file *file)
 {
@@ -406,8 +431,7 @@ void check_addr(const uint64_t *addr)
 	// 막 가져오나??
 	if (addr == NULL || pml4e_walk(curr->pml4, addr, false) == NULL)
 	{
-		// exit(-1);
 		sema_up(&syn_sema);
-		call_exit(curr, -1);
+		exit(-1);
 	}
 }

@@ -223,7 +223,7 @@ __do_fork(void *aux)
 
 error:
 	sema_up(&parent->fork_sema);
-	call_exit(current, TID_ERROR);
+	exit(TID_ERROR);
 }
 
 /* Switch the current execution context to the f_name.

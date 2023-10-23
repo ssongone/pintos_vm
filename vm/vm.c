@@ -252,7 +252,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 	// 구현에 도움을 드리자면 우선 인자로 들어오면 addr의 유효성을 검증하고,뒤이어 현재 쓰레드의 rsp_stack를 받아오거나 인터럽트 프레임의 rsp를 받아와 현재 쓰레드의 rsp 주소를 설정합니다.
 	if (addr == NULL || is_kernel_vaddr(addr))
 	{
-		call_exit(curr, -1);
+		return false;
 	}
 	// if (USER_STACK > addr && curr->tf.rsp > addr) {
 	// 	call_exit(curr, -1);
@@ -285,7 +285,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
 
 	if (write && !page->writable)
 	{
-		call_exit(curr, -1);
+		return false;
 	}
 
 	/*TODO -
